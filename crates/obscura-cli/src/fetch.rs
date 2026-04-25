@@ -22,7 +22,7 @@ pub(crate) async fn run_fetch(
         page.http_client.set_user_agent(ua).await;
     }
 
-    let wait_condition = obscura_browser::lifecycle::WaitUntil::from_str(wait_until);
+    let wait_condition = obscura_browser::lifecycle::WaitUntil::parse(wait_until);
 
     if !quiet {
         eprintln!("Fetching {}...", url_str);

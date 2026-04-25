@@ -9,7 +9,7 @@ use crate::types::CdpRequest;
 
 pub(crate) fn handle_fetch_resolution(
     text: &str,
-    ctx: &mut CdpContext,
+    _ctx: &mut CdpContext,
     reply_tx: &mpsc::UnboundedSender<String>,
     intercepted_paused: &mut HashMap<String, tokio::sync::oneshot::Sender<obscura_js::ops::InterceptResolution>>,
 ) {
@@ -117,11 +117,11 @@ pub(crate) async fn process_with_interception(
         .get("waitUntil")
         .and_then(|v| {
             if let Some(s) = v.as_str() {
-                Some(obscura_browser::WaitUntil::from_str(s))
+                Some(obscura_browser::WaitUntil::parse(s))
             } else if let Some(arr) = v.as_array() {
                 arr.iter()
                     .filter_map(|item| item.as_str())
-                    .map(obscura_browser::WaitUntil::from_str)
+                    .map(obscura_browser::WaitUntil::parse)
                     .max_by_key(|w| match w {
                         obscura_browser::WaitUntil::DomContentLoaded => 0,
                         obscura_browser::WaitUntil::Load => 1,
@@ -160,7 +160,9 @@ pub(crate) async fn process_with_interception(
         let _ = nav_done_tx.send((page, result)).await;
     });
 
+    #[allow(clippy::needless_late_init)]
     let mut navigate_result: Result<(), String> = Ok(());
+    #[allow(clippy::needless_late_init)]
     let mut page_back: Option<obscura_browser::Page> = None;
 
     loop {

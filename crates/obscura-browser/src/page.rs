@@ -272,19 +272,17 @@ impl Page {
 
         let css_results = futures::future::join_all(css_futures).await;
         let mut css_sources = Vec::new();
-        for result in css_results {
-            if let Some((url_str, resp)) = result {
-                let css = String::from_utf8_lossy(&resp.body).to_string();
-                self.record_network_event(
-                    &url_str,
-                    "GET",
-                    "Stylesheet",
-                    resp.status,
-                    &resp.headers,
-                    resp.body.len(),
-                );
-                css_sources.push(css);
-            }
+        for (url_str, resp) in css_results.into_iter().flatten() {
+            let css = String::from_utf8_lossy(&resp.body).to_string();
+            self.record_network_event(
+                &url_str,
+                "GET",
+                "Stylesheet",
+                resp.status,
+                &resp.headers,
+                resp.body.len(),
+            );
+            css_sources.push(css);
         }
 
         self.dom = Some(dom);

@@ -19,11 +19,11 @@ pub async fn handle(
                 .get("waitUntil")
                 .and_then(|v| {
                     if let Some(s) = v.as_str() {
-                        Some(WaitUntil::from_str(s))
+                        Some(WaitUntil::parse(s))
                     } else if let Some(arr) = v.as_array() {
                         arr.iter()
                             .filter_map(|item| item.as_str())
-                            .map(WaitUntil::from_str)
+                            .map(WaitUntil::parse)
                             .max_by_key(|w| match w {
                                 WaitUntil::DomContentLoaded => 0,
                                 WaitUntil::Load => 1,

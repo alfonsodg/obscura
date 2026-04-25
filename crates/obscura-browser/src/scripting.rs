@@ -4,6 +4,7 @@ use crate::page::Page;
 
 impl Page {
     pub(crate) fn init_js(&mut self) {
+        #[allow(clippy::collapsible_if)]
         if self.js.is_some() {
             let url_str = self.url_string();
             let title = self.title.clone();
@@ -142,11 +143,7 @@ impl Page {
             deferred.len(),
             async_scripts.len()
         );
-        let all_to_execute: Vec<ScriptInfo> = scripts
-            .into_iter()
-            .chain(deferred.into_iter())
-            .chain(async_scripts.into_iter())
-            .collect();
+        let all_to_execute: Vec<ScriptInfo> = scripts.into_iter().chain(deferred).chain(async_scripts).collect();
 
         let mut resolved: Vec<(usize, String)> = Vec::new();
         let mut fetch_tasks: Vec<(usize, String)> = Vec::new();
@@ -196,11 +193,9 @@ impl Page {
 
         let mut fetched: std::collections::HashMap<usize, (String, String, obscura_net::Response)> =
             std::collections::HashMap::new();
-        for result in fetch_results {
-            if let Some((idx, url, resp)) = result {
-                let code = String::from_utf8_lossy(&resp.body).to_string();
-                fetched.insert(idx, (url, code, resp));
-            }
+        for (idx, url, resp) in fetch_results.into_iter().flatten() {
+            let code = String::from_utf8_lossy(&resp.body).to_string();
+            fetched.insert(idx, (url, code, resp));
         }
 
         for (i, script) in all_to_execute.iter().enumerate() {

@@ -49,6 +49,12 @@ pub struct ObscuraState {
     pub intercept_enabled: bool,
 }
 
+impl Default for ObscuraState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ObscuraState {
     pub fn new() -> Self {
         ObscuraState {
@@ -457,10 +463,10 @@ async fn op_fetch_url(
                     .to_string());
                 }
                 Ok(InterceptResolution::Continue {
-                    url: new_url,
-                    method: new_method,
-                    headers: new_headers,
-                    body: new_body,
+                    url: _new_url,
+                    method: _new_method,
+                    headers: _new_headers,
+                    body: _new_body,
                 }) => {
                     tracing::debug!("Interception: continue request {}", url);
                 }

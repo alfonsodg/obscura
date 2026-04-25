@@ -27,3 +27,4 @@ reference/
 # Release artifacts
 *.tar.gz
 *.zip
+tests/e2e/node_modules/
