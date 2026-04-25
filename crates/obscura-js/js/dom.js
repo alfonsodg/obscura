@@ -11,12 +11,23 @@ class CSSStyleDeclaration {
 
 const _styleProxy = (decl) => new Proxy(decl, {
   get(t, p) {
-    if (typeof p === "symbol" || p in t) return t[p];
-    if (typeof p === "string") return t._props[p] || "";
+    if (typeof p === "symbol") return undefined;
+    if (p in t) {
+      const v = t[p];
+      return typeof v === 'function' ? v.bind(t) : v;
+    }
+    if (typeof p === "string") return t._props[p] || t._props[p.replace(/([A-Z])/g, '-$1').toLowerCase()] || "";
     return undefined;
   },
   set(t, p, v) {
-    if (typeof p === "string") { t._props[p] = String(v); return true; }
+    if (p === "cssText") { t.cssText = v; return true; }
+    if (typeof p === "string") {
+      t._props[p] = String(v);
+      // Also store kebab-case version
+      const kebab = p.replace(/([A-Z])/g, '-$1').toLowerCase();
+      if (kebab !== p) t._props[kebab] = String(v);
+      return true;
+    }
     t[p] = v; return true;
   }
 });
@@ -50,7 +61,11 @@ class Node {
     const t = this.nodeType;
     if (t === 3 || t === 8) _dom("set_text_content", this._nid, String(v ?? ""));
   }
-  get parentNode() { return _wrap(+_dom("parent_node", this._nid)); }
+  get parentNode() {
+    if (this._parentOverride !== undefined) return this._parentOverride;
+    return _wrap(+_dom("parent_node", this._nid));
+  }
+  set parentNode(v) { this._parentOverride = v; }
   get parentElement() { const p = this.parentNode; return p && p.nodeType === 1 ? p : null; }
   get childNodes() {
     const ids = _domParse("child_nodes", this._nid) || [];
@@ -162,7 +177,33 @@ class Element extends Node {
   constructor(nid) {
     super(nid);
     this._style = _styleProxy(new CSSStyleDeclaration());
+    this._eventHandlers = {};
   }
+  // Event handler properties (needed by jQuery feature detection)
+  get onclick() { return this._eventHandlers.click || null; }
+  set onclick(v) { this._eventHandlers.click = v; }
+  get onsubmit() { return this._eventHandlers.submit || null; }
+  set onsubmit(v) { this._eventHandlers.submit = v; }
+  get onchange() { return this._eventHandlers.change || null; }
+  set onchange(v) { this._eventHandlers.change = v; }
+  get onfocus() { return this._eventHandlers.focus || null; }
+  set onfocus(v) { this._eventHandlers.focus = v; }
+  get onblur() { return this._eventHandlers.blur || null; }
+  set onblur(v) { this._eventHandlers.blur = v; }
+  get onload() { return this._eventHandlers.load || null; }
+  set onload(v) { this._eventHandlers.load = v; }
+  get onerror() { return this._eventHandlers.error || null; }
+  set onerror(v) { this._eventHandlers.error = v; }
+  get oninput() { return this._eventHandlers.input || null; }
+  set oninput(v) { this._eventHandlers.input = v; }
+  get onkeydown() { return this._eventHandlers.keydown || null; }
+  set onkeydown(v) { this._eventHandlers.keydown = v; }
+  get onkeyup() { return this._eventHandlers.keyup || null; }
+  set onkeyup(v) { this._eventHandlers.keyup = v; }
+  get onmousedown() { return this._eventHandlers.mousedown || null; }
+  set onmousedown(v) { this._eventHandlers.mousedown = v; }
+  get onmouseup() { return this._eventHandlers.mouseup || null; }
+  set onmouseup(v) { this._eventHandlers.mouseup = v; }
   get tagName() { return _domParse("tag_name", this._nid) || ""; }
   get localName() { return (this.tagName || "").toLowerCase(); }
   get id() { return this.getAttribute("id") || ""; }
@@ -723,13 +764,73 @@ class Document extends Node {
 }
 
 class DocumentFragment extends Node {
+  constructor() {
+    super(-1);
+    this._children = [];
+  }
   get nodeType() { return 11; }
   get nodeName() { return "#document-fragment"; }
-  querySelector(s) { return null; }
-  querySelectorAll(s) { return []; }
-  get children() { return []; }
-  get firstElementChild() { return null; }
-  getElementById(id) { return null; }
+  appendChild(child) {
+    if (child instanceof DocumentFragment) {
+      for (const c of child._children) { c.parentNode = this; this._children.push(c); }
+      child._children = [];
+      return child;
+    }
+    child.parentNode = this;
+    this._children.push(child);
+    return child;
+  }
+  removeChild(child) {
+    this._children = this._children.filter(c => c !== child);
+    child.parentNode = null;
+    return child;
+  }
+  insertBefore(newChild, refChild) {
+    const idx = this._children.indexOf(refChild);
+    if (idx >= 0) { this._children.splice(idx, 0, newChild); }
+    else { this._children.push(newChild); }
+    newChild.parentNode = this;
+    return newChild;
+  }
+  get childNodes() { return this._children; }
+  get children() { return this._children.filter(c => c.nodeType === 1); }
+  get firstChild() { return this._children[0] || null; }
+  get lastChild() { return this._children[this._children.length - 1] || null; }
+  get firstElementChild() { return this.children[0] || null; }
+  querySelector(s) {
+    for (const c of this._children) {
+      if (c.matches && c.matches(s)) return c;
+      if (c.querySelector) { const r = c.querySelector(s); if (r) return r; }
+    }
+    return null;
+  }
+  querySelectorAll(s) {
+    const results = [];
+    for (const c of this._children) {
+      if (c.matches && c.matches(s)) results.push(c);
+      if (c.querySelectorAll) results.push(...c.querySelectorAll(s));
+    }
+    results.item = (i) => results[i] || null;
+    results.forEach = Array.prototype.forEach.bind(results);
+    return results;
+  }
+  getElementById(id) {
+    for (const c of this._children) {
+      if (c.getAttribute && c.getAttribute('id') === id) return c;
+      if (c.getElementById) { const r = c.getElementById(id); if (r) return r; }
+    }
+    return null;
+  }
+  cloneNode(deep) {
+    const frag = new DocumentFragment();
+    if (deep) {
+      for (const c of this._children) {
+        if (c.cloneNode) frag.appendChild(c.cloneNode(true));
+      }
+    }
+    return frag;
+  }
+  get textContent() { return this._children.map(c => c.textContent || '').join(''); }
 }
 
 class DocumentType extends Node {
