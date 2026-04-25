@@ -657,6 +657,15 @@ fn op_set_cookie(state: &OpState, #[string] cookie_str: &str) {
     jar.set_cookie_from_js(cookie_str, &url);
 }
 
+#[op2(async)]
+#[smi]
+async fn op_sleep(#[smi] delay_ms: i32) -> Result<i32, deno_error::JsErrorBox> {
+    if delay_ms > 0 {
+        tokio::time::sleep(std::time::Duration::from_millis(delay_ms as u64)).await;
+    }
+    Ok(0)
+}
+
 #[op2(fast)]
 fn op_navigate(state: &OpState, #[string] url: &str, #[string] method: &str, #[string] body: &str) {
     let gs = state.borrow::<SharedState>().clone();
@@ -674,6 +683,7 @@ pub fn build_extension() -> Extension {
             op_get_cookies(),
             op_set_cookie(),
             op_navigate(),
+            op_sleep(),
         ]),
         ..Default::default()
     }

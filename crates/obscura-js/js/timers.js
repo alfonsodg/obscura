@@ -5,25 +5,17 @@ const _clearedTimers = new Set();
 globalThis.setTimeout = (fn, delay = 0, ...args) => {
   if (typeof fn !== "function") return ++_tid;
   const id = ++_tid;
-  _pendingTimers.set(id, { fn, args, delay });
-  const run = () => {
+  _pendingTimers.set(id, true);
+  const run = async () => {
+    if (delay > 0) {
+      try { await Deno.core.ops.op_sleep(Math.min(delay, 30000)); } catch {}
+    }
     if (!_clearedTimers.has(id) && _pendingTimers.has(id)) {
       _pendingTimers.delete(id);
       try { fn(...args); } catch(e) { console.error("Timer error:", e); }
     }
   };
-  if (delay <= 0) {
-    Promise.resolve().then(run);
-  } else {
-    // Schedule via microtask chain to approximate delay
-    const start = Date.now();
-    const check = () => {
-      if (_clearedTimers.has(id)) return;
-      if (Date.now() - start >= delay) { run(); }
-      else { Promise.resolve().then(check); }
-    };
-    Promise.resolve().then(check);
-  }
+  run();
   return id;
 };
 
@@ -31,35 +23,19 @@ globalThis.clearTimeout = (id) => { _clearedTimers.add(id); _pendingTimers.delet
 globalThis.setInterval = (fn, delay, ...args) => {
   if (typeof fn !== "function") return ++_tid;
   const id = ++_tid;
-  const tick = () => {
+  _pendingTimers.set(id, true);
+  const tick = async () => {
+    if (delay > 0) {
+      try { await Deno.core.ops.op_sleep(Math.min(delay, 30000)); } catch {}
+    }
     if (_clearedTimers.has(id)) return;
     try { fn(...args); } catch(e) { console.error("Timer error:", e); }
-    if (!_clearedTimers.has(id)) {
-      _pendingTimers.set(id, { fn, args, delay });
-      setTimeout(tick, delay);
-    }
+    if (!_clearedTimers.has(id)) tick();
   };
-  _pendingTimers.set(id, { fn, args, delay });
-  setTimeout(tick, delay);
+  tick();
   return id;
 };
 globalThis.clearInterval = globalThis.clearTimeout;
 globalThis.requestAnimationFrame = (fn) => setTimeout(fn, 0);
 globalThis.cancelAnimationFrame = globalThis.clearTimeout;
 globalThis.queueMicrotask = globalThis.queueMicrotask || ((fn) => Promise.resolve().then(fn));
-
-class MessageChannel {
-  constructor() {
-    this.port1 = { onmessage: null, postMessage: () => {}, close() {}, addEventListener() {}, removeEventListener() {} };
-    this.port2 = { onmessage: null, postMessage: () => {}, close() {}, addEventListener() {}, removeEventListener() {} };
-    this.port1.postMessage = (data) => {
-      Promise.resolve().then(() => { if (this.port2.onmessage) this.port2.onmessage({ data }); });
-    };
-    this.port2.postMessage = (data) => {
-      Promise.resolve().then(() => { if (this.port1.onmessage) this.port1.onmessage({ data }); });
-    };
-  }
-}
-globalThis.MessageChannel = MessageChannel;
-globalThis.MessagePort = class MessagePort { constructor(){} postMessage(){} close(){} addEventListener(){} removeEventListener(){} };
-
