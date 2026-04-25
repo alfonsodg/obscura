@@ -52,50 +52,59 @@ if (typeof TextDecoder === 'undefined') {
 }
 
 globalThis.matchMedia = _markNative(function matchMedia(q) { return { matches: false, media: q, addListener(){}, removeListener(){}, addEventListener(){}, removeEventListener(){}, dispatchEvent(){return true;} }; });
-globalThis.getComputedStyle = (el) => {
+globalThis.getComputedStyle = _markNative(function getComputedStyle(el, pseudoElt) {
   if (!el) el = document.body || {};
   const style = el?.style || el?._style || new CSSStyleDeclaration();
-  return new Proxy(style, {
+  const defaults = {
+    display: 'block', visibility: 'visible', opacity: '1',
+    position: 'static', overflow: 'visible',
+    transform: 'none', transition: 'none', animation: 'none',
+    float: 'none', clear: 'none',
+    width: 'auto', height: 'auto',
+    top: 'auto', left: 'auto', right: 'auto', bottom: 'auto',
+    margin: '0px', padding: '0px',
+    'margin-top': '0px', 'margin-right': '0px', 'margin-bottom': '0px', 'margin-left': '0px',
+    'padding-top': '0px', 'padding-right': '0px', 'padding-bottom': '0px', 'padding-left': '0px',
+    'font-size': '16px', 'line-height': 'normal', 'font-weight': '400', 'font-family': 'sans-serif',
+    'font-style': 'normal', 'text-align': 'start', 'text-decoration': 'none', 'text-transform': 'none',
+    color: 'rgb(0, 0, 0)', 'background-color': 'rgba(0, 0, 0, 0)',
+    'border-width': '0px', 'border-style': 'none', 'border-color': 'rgb(0, 0, 0)',
+    'border-top-width': '0px', 'border-right-width': '0px', 'border-bottom-width': '0px', 'border-left-width': '0px',
+    'z-index': 'auto', 'pointer-events': 'auto',
+    'box-sizing': 'content-box', cursor: 'auto',
+    'white-space': 'normal', 'word-wrap': 'normal', 'overflow-wrap': 'normal',
+    'vertical-align': 'baseline', 'text-indent': '0px', 'letter-spacing': 'normal',
+    'min-width': '0px', 'min-height': '0px', 'max-width': 'none', 'max-height': 'none',
+    'outline-style': 'none', 'outline-width': '0px',
+    'list-style-type': 'disc', 'table-layout': 'auto', 'border-collapse': 'separate',
+    'background-image': 'none', 'background-position': '0% 0%', 'background-repeat': 'repeat',
+  };
+  const resolve = (prop) => {
+    if (typeof prop !== 'string') return '';
+    const v = style.getPropertyValue ? style.getPropertyValue(prop) : '';
+    if (v) return v;
+    const kebab = prop.replace(/([A-Z])/g, '-$1').toLowerCase();
+    const camel = prop.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+    return defaults[prop] || defaults[kebab] || defaults[camel] || '';
+  };
+  const obj = {
+    getPropertyValue: resolve,
+    getPropertyPriority: () => '',
+    item: (i) => Object.keys(defaults)[i] || '',
+    get length() { return Object.keys(defaults).length; },
+    get cssText() { return ''; },
+    setProperty() {}, removeProperty() {},
+    parentRule: null,
+  };
+  return new Proxy(obj, {
     get(target, prop) {
       if (prop === Symbol.toPrimitive || prop === Symbol.toStringTag) return undefined;
       if (prop in target) return target[prop];
-      if (typeof prop === 'string') {
-        const v = target.getPropertyValue ? target.getPropertyValue(prop) : '';
-        if (v) return v;
-        const defaults = {
-          display: 'block', visibility: 'visible', opacity: '1',
-          position: 'static', overflow: 'visible',
-          transform: 'none', transition: 'none', animation: 'none',
-          float: 'none', clear: 'none',
-          width: 'auto', height: 'auto',
-          top: 'auto', left: 'auto', right: 'auto', bottom: 'auto',
-          margin: '0px', padding: '0px',
-          'margin-top': '0px', 'margin-right': '0px', 'margin-bottom': '0px', 'margin-left': '0px',
-          'padding-top': '0px', 'padding-right': '0px', 'padding-bottom': '0px', 'padding-left': '0px',
-          'font-size': '16px', 'line-height': 'normal', 'font-weight': '400',
-          color: 'rgb(0, 0, 0)', 'background-color': 'rgba(0, 0, 0, 0)',
-          'border-width': '0px', 'border-style': 'none', 'border-color': 'rgb(0, 0, 0)',
-          'z-index': 'auto', 'pointer-events': 'auto',
-          'box-sizing': 'content-box', cursor: 'auto',
-        };
-        const kebabProp = prop.replace(/([A-Z])/g, '-$1').toLowerCase();
-        if (defaults[prop]) return defaults[prop];
-        if (defaults[kebabProp]) return defaults[kebabProp];
-        return '';
-      }
-      if (prop === 'getPropertyValue') {
-        return (name) => {
-          const v = target.getPropertyValue ? target.getPropertyValue(name) : '';
-          if (v) return v;
-          const defaults = {transform:'none',opacity:'1',display:'block',visibility:'visible'};
-          return defaults[name] || defaults[name.replace(/-([a-z])/g,(_,c)=>c.toUpperCase())] || '';
-        };
-      }
-      if (prop === 'length') return 0;
+      if (typeof prop === 'string') return resolve(prop);
       return undefined;
     }
   });
-};
+});
 globalThis.getSelection = _markNative(function getSelection() {
   return {
     rangeCount: 0,

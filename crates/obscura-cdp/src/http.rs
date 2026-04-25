@@ -88,6 +88,31 @@ pub(crate) fn fast_path_response(text: &str) -> Option<String> {
         | "Emulation.setAutoDarkModeOverride"
         | "IndexedDB.enable"
         | "Target.setDiscoverTargets" => Some(json!({})),
+        // Runtime.enable needs an executionContextCreated event, but in fast path
+        // we emit a generic one. The real context is created during Page.navigate.
+        "Runtime.enable" => {
+            let sid = req.session_id.clone();
+            let resp = crate::types::CdpResponse::success(req.id, json!({}), sid.clone());
+            let resp_json = serde_json::to_string(&resp).ok()?;
+
+            let event = crate::types::CdpEvent {
+                method: "Runtime.executionContextCreated".to_string(),
+                params: json!({
+                    "context": {
+                        "id": 1,
+                        "origin": "about:blank",
+                        "name": "",
+                        "uniqueId": "ctx-fast-init",
+                        "auxData": { "isDefault": true, "type": "default", "frameId": "main" }
+                    }
+                }),
+                session_id: sid,
+            };
+            let event_json = serde_json::to_string(&event).ok()?;
+            // Return response + event concatenated with newline separator
+            // The caller will send both
+            return Some(format!("{}\n{}", resp_json, event_json));
+        }
         "Browser.getVersion" => Some(json!({
             "protocolVersion": "1.3",
             "product": "Obscura/0.1.0",

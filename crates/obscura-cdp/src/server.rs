@@ -172,7 +172,11 @@ async fn handle_connection(
                 }
 
                 if let Some(resp) = crate::http::fast_path_response(&text) {
-                    let _ = reply_tx.send(resp);
+                    for line in resp.split('\n') {
+                        if !line.is_empty() {
+                            let _ = reply_tx.send(line.to_string());
+                        }
+                    }
                 } else {
                     let _ = msg_tx.send(ServerMessage::Cdp(CdpMessage {
                         text: text.to_string(),
