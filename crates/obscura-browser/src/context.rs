@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use obscura_net::{CookieJar, ObscuraHttpClient, RobotsCache};
+use obscura_net::{CookieJar, ObscuraHttpClient, RobotsCache, DEFAULT_USER_AGENT};
 
 pub struct BrowserContext {
     pub id: String,
@@ -21,7 +21,7 @@ impl BrowserContext {
             id,
             cookie_jar,
             http_client,
-            user_agent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36".to_string(),
+            user_agent: DEFAULT_USER_AGENT.to_string(),
             proxy_url: None,
             robots_cache: Arc::new(RobotsCache::new()),
             obey_robots: false,
@@ -43,7 +43,7 @@ impl BrowserContext {
             id,
             cookie_jar,
             http_client,
-            user_agent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36".to_string(),
+            user_agent: DEFAULT_USER_AGENT.to_string(),
             proxy_url,
             robots_cache: Arc::new(RobotsCache::new()),
             obey_robots: false,

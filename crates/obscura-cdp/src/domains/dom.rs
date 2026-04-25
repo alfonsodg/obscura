@@ -3,6 +3,17 @@ use serde_json::{json, Value};
 
 use crate::dispatch::CdpContext;
 
+/// Escapes a string for safe interpolation into JavaScript single-quoted strings.
+fn escape_js_string(s: &str) -> String {
+    s.replace('\\', "\\\\")
+        .replace('\'', "\\'")
+        .replace('\n', "\\n")
+        .replace('\r', "\\r")
+        .replace('\0', "\\0")
+        .replace('\u{2028}', "\\u2028")
+        .replace('\u{2029}', "\\u2029")
+}
+
 pub async fn handle(
     method: &str,
     params: &Value,
@@ -56,7 +67,7 @@ pub async fn handle(
             {
                 nid
             } else if let Some(oid) = params.get("objectId").and_then(|v| v.as_str()) {
-                let escaped_oid = oid.replace('\\', "\\\\").replace('\'', "\\'");
+                let escaped_oid = escape_js_string(oid);
                 let code = format!(
                     "(function() {{ var o = globalThis.__obscura_objects['{}']; if (!o) return -1; return (typeof o._nid === 'number') ? o._nid : -1; }})()",
                     escaped_oid
@@ -81,7 +92,7 @@ pub async fn handle(
             } else if let Some(oid) = params.get("objectId").and_then(|v| v.as_str()) {
                 let code = format!(
                     "(function() {{ var o = globalThis.__obscura_objects['{}']; return (o && typeof o._nid === 'number') ? o._nid : -1; }})()",
-                    oid
+                    escape_js_string(oid)
                 );
                 let result = page.evaluate(&code);
                 result.as_f64().map(|n| n as u64).unwrap_or(0)

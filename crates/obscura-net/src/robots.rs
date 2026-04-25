@@ -20,11 +20,11 @@ impl RobotsCache {
 
     pub fn parse_and_store(&self, domain: &str, body: &str, our_agent: &str) {
         let rules = parse_robots_txt(body, our_agent);
-        self.cache.write().unwrap().insert(domain.to_string(), rules);
+        self.cache.write().unwrap_or_else(|e| e.into_inner()).insert(domain.to_string(), rules);
     }
 
     pub fn is_allowed(&self, domain: &str, path: &str) -> bool {
-        let cache = self.cache.read().unwrap();
+        let cache = self.cache.read().unwrap_or_else(|e| e.into_inner());
         let rules = match cache.get(domain) {
             Some(r) => r,
             None => return true,

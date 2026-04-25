@@ -86,7 +86,7 @@ impl CookieJar {
 
         if let Some(exp) = expires {
             if exp == 0 {
-                let mut cookies = self.cookies.write().unwrap();
+                let mut cookies = self.cookies.write().unwrap_or_else(|e| e.into_inner());
                 if let Some(domain_cookies) = cookies.get_mut(&domain) {
                     domain_cookies.remove(&name);
                 }
@@ -112,7 +112,7 @@ impl CookieJar {
             same_site,
         };
 
-        let mut cookies = self.cookies.write().unwrap();
+        let mut cookies = self.cookies.write().unwrap_or_else(|e| e.into_inner());
         cookies.entry(domain).or_default().insert(name, entry);
     }
 
@@ -120,7 +120,7 @@ impl CookieJar {
         let host = url.host_str().unwrap_or("");
         let path = url.path();
         let is_secure = url.scheme() == "https";
-        let cookies = self.cookies.read().unwrap();
+        let cookies = self.cookies.read().unwrap_or_else(|e| e.into_inner());
 
         let mut matching: Vec<String> = Vec::new();
 
@@ -153,7 +153,7 @@ impl CookieJar {
     }
 
     pub fn get_all_cookies(&self) -> Vec<CookieInfo> {
-        let cookies = self.cookies.read().unwrap();
+        let cookies = self.cookies.read().unwrap_or_else(|e| e.into_inner());
         let mut result = Vec::new();
         for domain_cookies in cookies.values() {
             for entry in domain_cookies.values() {
@@ -171,7 +171,7 @@ impl CookieJar {
     }
 
     pub fn set_cookies_from_cdp(&self, cookies: Vec<CookieInfo>) {
-        let mut jar = self.cookies.write().unwrap();
+        let mut jar = self.cookies.write().unwrap_or_else(|e| e.into_inner());
         for cookie in cookies {
             let entry = CookieEntry {
                 name: cookie.name.clone(),
@@ -191,7 +191,7 @@ impl CookieJar {
         let host = url.host_str().unwrap_or("");
         let path = url.path();
         let is_secure = url.scheme() == "https";
-        let cookies = self.cookies.read().unwrap();
+        let cookies = self.cookies.read().unwrap_or_else(|e| e.into_inner());
 
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -285,7 +285,7 @@ impl CookieJar {
 
         if let Some(exp) = expires {
             if exp == 0 {
-                let mut cookies = self.cookies.write().unwrap();
+                let mut cookies = self.cookies.write().unwrap_or_else(|e| e.into_inner());
                 if let Some(domain_cookies) = cookies.get_mut(&domain) {
                     domain_cookies.remove(&name);
                 }
@@ -311,12 +311,12 @@ impl CookieJar {
             same_site,
         };
 
-        let mut cookies = self.cookies.write().unwrap();
+        let mut cookies = self.cookies.write().unwrap_or_else(|e| e.into_inner());
         cookies.entry(domain).or_default().insert(name, entry);
     }
 
     pub fn delete_cookie(&self, name: &str, domain: &str) {
-        let mut cookies = self.cookies.write().unwrap();
+        let mut cookies = self.cookies.write().unwrap_or_else(|e| e.into_inner());
         if domain.is_empty() {
             for domain_cookies in cookies.values_mut() {
                 domain_cookies.remove(name);
@@ -336,7 +336,7 @@ impl CookieJar {
     }
 
     pub fn clear(&self) {
-        self.cookies.write().unwrap().clear();
+        self.cookies.write().unwrap_or_else(|e| e.into_inner()).clear();
     }
 }
 

@@ -428,30 +428,11 @@ async fn process_cdp_message(
 }
 
 fn decode_base64(input: &str) -> String {
-    fn val(c: u8) -> Option<u8> {
-        match c {
-            b'A'..=b'Z' => Some(c - b'A'),
-            b'a'..=b'z' => Some(c - b'a' + 26),
-            b'0'..=b'9' => Some(c - b'0' + 52),
-            b'+' => Some(62),
-            b'/' => Some(63),
-            _ => None,
-        }
-    }
-    let bytes: Vec<u8> = input.bytes().filter_map(val).collect();
-    let mut out = Vec::with_capacity(bytes.len() * 3 / 4);
-    for chunk in bytes.chunks(4) {
-        let b = [
-            chunk.first().copied().unwrap_or(0),
-            chunk.get(1).copied().unwrap_or(0),
-            chunk.get(2).copied().unwrap_or(0),
-            chunk.get(3).copied().unwrap_or(0),
-        ];
-        out.push((b[0] << 2) | (b[1] >> 4));
-        if chunk.len() > 2 { out.push((b[1] << 4) | (b[2] >> 2)); }
-        if chunk.len() > 3 { out.push((b[2] << 6) | b[3]); }
-    }
-    String::from_utf8_lossy(&out).to_string()
+    use base64::Engine;
+    base64::engine::general_purpose::STANDARD
+        .decode(input)
+        .map(|bytes| String::from_utf8_lossy(&bytes).to_string())
+        .unwrap_or_default()
 }
 
 fn fast_path_response(text: &str) -> Option<String> {
@@ -519,6 +500,8 @@ async fn handle_connection(
             return handle_http_json(stream, port, "list").await;
         } else if line.contains("/json/protocol") {
             return handle_http_json(stream, port, "protocol").await;
+        } else if line.contains("/health") {
+            return handle_health(stream).await;
         }
     }
 
@@ -619,6 +602,23 @@ async fn handle_http_json(stream: TcpStream, port: u16, endpoint: &str) -> anyho
         _ => "{}".to_string(),
     };
 
+    let resp = format!(
+        "HTTP/1.1 200 OK\r\nContent-Type: application/json; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+        body.len(), body,
+    );
+    stream.write_all(resp.as_bytes()).await?;
+    stream.flush().await?;
+    Ok(())
+}
+
+async fn handle_health(stream: TcpStream) -> anyhow::Result<()> {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let mut stream = stream;
+    let mut buf = vec![0u8; 4096];
+    let _ = stream.read(&mut buf).await?;
+
+    let body = json!({"status": "ok", "service": "obscura", "version": "0.1.0"}).to_string();
     let resp = format!(
         "HTTP/1.1 200 OK\r\nContent-Type: application/json; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
         body.len(), body,

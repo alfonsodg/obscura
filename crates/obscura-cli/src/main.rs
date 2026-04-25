@@ -137,7 +137,6 @@ async fn main() -> anyhow::Result<()> {
             if stealth {
                 tracing::info!("Stealth mode enabled (TLS fingerprint spoofing)");
             }
-            let _ = stealth;
 
             if workers > 1 {
                 tracing::info!("{} worker processes", workers);

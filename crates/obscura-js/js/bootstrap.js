@@ -153,18 +153,42 @@ globalThis.setTimeout = (fn, delay = 0, ...args) => {
   if (typeof fn !== "function") return ++_tid;
   const id = ++_tid;
   _pendingTimers.set(id, { fn, args, delay });
-  Promise.resolve().then(() => {
+  const run = () => {
     if (!_clearedTimers.has(id) && _pendingTimers.has(id)) {
       _pendingTimers.delete(id);
       try { fn(...args); } catch(e) { console.error("Timer error:", e); }
     }
-  });
+  };
+  if (delay <= 0) {
+    Promise.resolve().then(run);
+  } else {
+    // Schedule via microtask chain to approximate delay
+    const start = Date.now();
+    const check = () => {
+      if (_clearedTimers.has(id)) return;
+      if (Date.now() - start >= delay) { run(); }
+      else { Promise.resolve().then(check); }
+    };
+    Promise.resolve().then(check);
+  }
   return id;
 };
 
 globalThis.clearTimeout = (id) => { _clearedTimers.add(id); _pendingTimers.delete(id); };
 globalThis.setInterval = (fn, delay, ...args) => {
-  return setTimeout(fn, delay, ...args);
+  if (typeof fn !== "function") return ++_tid;
+  const id = ++_tid;
+  const tick = () => {
+    if (_clearedTimers.has(id)) return;
+    try { fn(...args); } catch(e) { console.error("Timer error:", e); }
+    if (!_clearedTimers.has(id)) {
+      _pendingTimers.set(id, { fn, args, delay });
+      setTimeout(tick, delay);
+    }
+  };
+  _pendingTimers.set(id, { fn, args, delay });
+  setTimeout(tick, delay);
+  return id;
 };
 globalThis.clearInterval = globalThis.clearTimeout;
 globalThis.requestAnimationFrame = (fn) => setTimeout(fn, 0);
@@ -2579,7 +2603,8 @@ globalThis.Worker = class Worker {
           fetch: globalThis.fetch,
           console: globalThis.console,
         };
-        const fn = new Function('self', 'postMessage', 'addEventListener', 'close', worker._code);
+        const fn = new Function('self', 'postMessage', 'addEventListener', 'close',
+          'var document=undefined,window=undefined,globalThis=self,location=undefined;\n' + worker._code);
         fn(workerSelf, workerSelf.postMessage, workerSelf.addEventListener, workerSelf.close);
         if (workerSelf.onmessage) workerSelf.onmessage({ data });
       } catch(e) {
@@ -2689,28 +2714,20 @@ if (typeof TransformStream === 'undefined') {
 
 if (!globalThis.crypto) globalThis.crypto = {};
 if (!globalThis.crypto.subtle) {
+  const _notSupported = (name) => { throw new DOMException(`crypto.subtle.${name}() is not implemented in Obscura`, 'NotSupportedError'); };
   globalThis.crypto.subtle = {
-    async digest(algorithm, data) {
-      const name = typeof algorithm === 'string' ? algorithm : algorithm?.name || 'SHA-256';
-      const bytes = new Uint8Array(data instanceof ArrayBuffer ? data : data.buffer || data);
-      let hash = 0x811c9dc5;
-      for (let i = 0; i < bytes.length; i++) { hash ^= bytes[i]; hash = Math.imul(hash, 0x01000193); }
-      const size = name.includes('512') ? 64 : name.includes('384') ? 48 : 32;
-      const result = new Uint8Array(size);
-      for (let i = 0; i < size; i++) { hash = Math.imul(hash ^ i, 0x45d9f3b); result[i] = (hash >>> 0) & 0xff; }
-      return result.buffer;
-    },
-    async encrypt() { throw new DOMException('NotSupportedError'); },
-    async decrypt() { throw new DOMException('NotSupportedError'); },
-    async sign() { return new ArrayBuffer(32); },
-    async verify() { return true; },
-    async generateKey() { return { type: 'secret', algorithm: {}, extractable: false, usages: [] }; },
-    async importKey() { return { type: 'secret', algorithm: {}, extractable: false, usages: [] }; },
-    async exportKey() { return new ArrayBuffer(32); },
-    async deriveBits() { return new ArrayBuffer(32); },
-    async deriveKey() { return { type: 'secret', algorithm: {}, extractable: false, usages: [] }; },
-    async wrapKey() { return new ArrayBuffer(32); },
-    async unwrapKey() { return { type: 'secret', algorithm: {}, extractable: false, usages: [] }; },
+    async digest() { _notSupported('digest'); },
+    async encrypt() { _notSupported('encrypt'); },
+    async decrypt() { _notSupported('decrypt'); },
+    async sign() { _notSupported('sign'); },
+    async verify() { _notSupported('verify'); },
+    async generateKey() { _notSupported('generateKey'); },
+    async importKey() { _notSupported('importKey'); },
+    async exportKey() { _notSupported('exportKey'); },
+    async deriveBits() { _notSupported('deriveBits'); },
+    async deriveKey() { _notSupported('deriveKey'); },
+    async wrapKey() { _notSupported('wrapKey'); },
+    async unwrapKey() { _notSupported('unwrapKey'); },
   };
 }
 

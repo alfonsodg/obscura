@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -11,6 +10,8 @@ use url::Url;
 
 use crate::cookies::CookieJar;
 use crate::interceptor::{InterceptAction, RequestInterceptor};
+use crate::validate_url;
+use crate::DEFAULT_USER_AGENT;
 
 #[derive(Debug, Clone)]
 pub struct Response {
@@ -64,57 +65,6 @@ pub enum ResourceType {
 pub type RequestCallback = Arc<dyn Fn(&RequestInfo) + Send + Sync>;
 pub type ResponseCallback = Arc<dyn Fn(&RequestInfo, &Response) + Send + Sync>;
 
-fn validate_url(url: &Url) -> Result<(), ObscuraNetError> {
-    let scheme = url.scheme();
-    if scheme != "http" && scheme != "https" {
-        return Err(ObscuraNetError::Network(format!(
-            "Forbidden URL scheme '{}' - only http and https are allowed",
-            scheme
-        )));
-    }
-
-    if let Some(host) = url.host() {
-        match host {
-            url::Host::Ipv4(ip) => {
-                if ip.is_loopback()
-                    || ip.is_private()
-                    || ip.is_link_local()
-                    || ip.is_broadcast()
-                    || ip.is_documentation()
-                {
-                    return Err(ObscuraNetError::Network(format!(
-                        "Access to private/internal IP address {} is not allowed",
-                        ip
-                    )));
-                }
-            }
-            url::Host::Ipv6(ip) => {
-                if ip.is_loopback() || ip.is_unicast_link_local() {
-                    return Err(ObscuraNetError::Network(format!(
-                        "Access to private/internal IPv6 address {} is not allowed",
-                        ip
-                    )));
-                }
-            }
-            url::Host::Domain(domain) => {
-                let lower_domain = domain.to_lowercase();
-                if lower_domain == "localhost"
-                    || lower_domain.ends_with(".localhost")
-                    || lower_domain == "127.0.0.1"
-                    || lower_domain == "::1"
-                {
-                    return Err(ObscuraNetError::Network(format!(
-                        "Access to localhost domain '{}' is not allowed",
-                        domain
-                    )));
-                }
-            }
-        }
-    }
-
-    Ok(())
-}
-
 pub struct ObscuraHttpClient {
     client: tokio::sync::OnceCell<Client>,
     proxy_url: Option<String>,
@@ -143,9 +93,7 @@ impl ObscuraHttpClient {
             client: tokio::sync::OnceCell::new(),
             proxy_url: proxy_url.map(|s| s.to_string()),
             cookie_jar,
-            user_agent: RwLock::new(
-                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36".to_string(),
-            ),
+            user_agent: RwLock::new(DEFAULT_USER_AGENT.to_string()),
             extra_headers: RwLock::new(HashMap::new()),
             interceptor: RwLock::new(None),
             on_request: RwLock::new(Vec::new()),
@@ -242,7 +190,7 @@ impl ObscuraHttpClient {
             let ua = self.user_agent.read().await.clone();
             let mut headers = HeaderMap::new();
             headers.insert(USER_AGENT, HeaderValue::from_str(&ua).unwrap_or_else(|_| {
-                HeaderValue::from_static("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36")
+                HeaderValue::from_static(DEFAULT_USER_AGENT)
             }));
             headers.insert(
                 reqwest::header::ACCEPT,

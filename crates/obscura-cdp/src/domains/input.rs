@@ -2,6 +2,18 @@ use serde_json::{json, Value};
 
 use crate::dispatch::CdpContext;
 
+/// Escapes a string for safe interpolation into JavaScript single-quoted strings.
+/// Backslashes must be escaped first to avoid double-escaping.
+fn escape_js_string(s: &str) -> String {
+    s.replace('\\', "\\\\")
+        .replace('\'', "\\'")
+        .replace('\n', "\\n")
+        .replace('\r', "\\r")
+        .replace('\0', "\\0")
+        .replace('\u{2028}', "\\u2028")
+        .replace('\u{2029}', "\\u2029")
+}
+
 pub async fn handle(
     method: &str,
     params: &Value,
@@ -73,8 +85,8 @@ pub async fn handle(
                                 var evt = new KeyboardEvent('keydown', {{bubbles:true,cancelable:true,key:'{key}',code:'{code}'}});\
                                 target.dispatchEvent(evt);\
                             }})()",
-                            key = key.replace('\'', "\\'"),
-                            code = code.replace('\'', "\\'"),
+                            key = escape_js_string(key),
+                            code = escape_js_string(code),
                         );
                         page.evaluate(&js);
 
@@ -87,7 +99,7 @@ pub async fn handle(
                                         target.dispatchEvent(new Event('input', {{bubbles:true}}));\
                                     }}\
                                 }})()",
-                                text = text.replace('\'', "\\'").replace('\\', "\\\\"),
+                                text = escape_js_string(text),
                             );
                             page.evaluate(&js);
                         }
@@ -122,8 +134,8 @@ pub async fn handle(
                                 var evt = new KeyboardEvent('keyup', {{bubbles:true,key:'{key}',code:'{code}'}});\
                                 target.dispatchEvent(evt);\
                             }})()",
-                            key = key.replace('\'', "\\'"),
-                            code = code.replace('\'', "\\'"),
+                            key = escape_js_string(key),
+                            code = escape_js_string(code),
                         );
                         page.evaluate(&js);
                     }
@@ -137,7 +149,7 @@ pub async fn handle(
                                         target.dispatchEvent(new Event('input', {{bubbles:true}}));\
                                     }}\
                                 }})()",
-                                text = text.replace('\'', "\\'").replace('\\', "\\\\"),
+                                text = escape_js_string(text),
                             );
                             page.evaluate(&js);
                         }

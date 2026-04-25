@@ -54,7 +54,13 @@ impl ModuleLoader for ObscuraModuleLoader {
         let url = module_specifier.to_string();
 
         ModuleLoadResponse::Async(Pin::from(Box::new(async move {
+            let parsed_url = url::Url::parse(&url)
+                .map_err(|e| io_err(format!("Invalid module URL: {}", e)))?;
+            obscura_net::validate_url(&parsed_url)
+                .map_err(|e| io_err(format!("Blocked module URL: {}", e)))?;
+
             let client = reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(30))
                 .build()
                 .map_err(|e| io_err(format!("HTTP client error: {}", e)))?;
 

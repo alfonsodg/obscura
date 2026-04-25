@@ -143,10 +143,15 @@ pub(crate) struct DomTreeInner {
     pub(crate) free_list: Vec<u32>,
     pub(crate) document: NodeId,
     pub(crate) id_index: HashMap<String, NodeId>,
+    pub(crate) max_nodes: usize,
 }
 
 impl DomTree {
     pub fn new() -> Self {
+        Self::with_max_nodes(100_000)
+    }
+
+    pub fn with_max_nodes(max_nodes: usize) -> Self {
         let doc_node = Node {
             id: NodeId(0),
             parent: None,
@@ -162,6 +167,7 @@ impl DomTree {
                 free_list: Vec::new(),
                 document: NodeId(0),
                 id_index: HashMap::new(),
+                max_nodes,
             }),
         }
     }
@@ -176,6 +182,11 @@ impl DomTree {
 
     pub fn new_node(&self, data: NodeData) -> NodeId {
         let mut inner = self.inner.borrow_mut();
+        let active_count = inner.nodes.len() - inner.free_list.len();
+        if active_count >= inner.max_nodes {
+            tracing::warn!("DOM node limit reached ({}), dropping new node", inner.max_nodes);
+            return inner.document;
+        }
         let id = if let Some(slot) = inner.free_list.pop() {
             NodeId(slot)
         } else {

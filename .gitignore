@@ -1,0 +1,40 @@
+# Build artifacts
+/target/
+**/*.rs.bk
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+REMOTE.md
+
+# IDE & OS
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Debug & screenshots
+debug/
+
+# Reference docs
+reference/
+
+# AI agents
+AGENTS.md
+.kiro/
+.cursor/
+.aider*
+.claude/
+CLAUDE.md
+
+# Logs & temp
+*.log
+tmp/
+.cache/
+*.tmp
+*.bak
+*.orig
