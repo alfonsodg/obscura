@@ -76,7 +76,18 @@ pub(crate) fn fast_path_response(text: &str) -> Option<String> {
         | "HeapProfiler.enable"
         | "Overlay.enable"
         | "Storage.enable"
-        | "Target.setAutoAttach" => Some(json!({})),
+        | "Target.setAutoAttach"
+        | "Audits.enable"
+        | "Audits.disable"
+        | "Console.enable"
+        | "Console.disable"
+        | "Database.enable"
+        | "DOMStorage.enable"
+        | "Emulation.setScrollbarsHidden"
+        | "Emulation.setFocusEmulationEnabled"
+        | "Emulation.setAutoDarkModeOverride"
+        | "IndexedDB.enable"
+        | "Target.setDiscoverTargets" => Some(json!({})),
         "Browser.getVersion" => Some(json!({
             "protocolVersion": "1.3",
             "product": "Obscura/0.1.0",

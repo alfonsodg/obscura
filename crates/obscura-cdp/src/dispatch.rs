@@ -113,8 +113,9 @@ pub async fn dispatch(req: &CdpRequest, ctx: &mut CdpContext) -> CdpResponse {
         "Input" => domains::input::handle(method, &req.params, ctx, &req.session_id).await,
         "Storage" => domains::storage::handle(method, &req.params, ctx, &req.session_id).await,
         "LP" => domains::lp::handle(method, &req.params, ctx, &req.session_id).await,
-        "Emulation" | "Log" | "Performance" | "Security" | "CSS" | "Accessibility" | "ServiceWorker" | "Inspector"
-        | "Debugger" | "Profiler" | "HeapProfiler" | "Overlay" => Ok(json!({})),
+        "Emulation" | "Log" | "Performance" | "Security" | "CSS" | "Accessibility"
+        | "ServiceWorker" | "Inspector" | "Debugger" | "Profiler" | "HeapProfiler" | "Overlay"
+        | "Audits" | "Console" | "Database" | "DOMStorage" | "IndexedDB" => Ok(json!({})),
         _ => Err(format!("Unknown domain: {}", domain)),
     };
 
