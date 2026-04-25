@@ -64,17 +64,12 @@ impl CdpContext {
     }
 
     pub fn get_session_page(&self, session_id: &Option<String>) -> Option<&Page> {
-        let page_id = session_id
-            .as_ref()
-            .and_then(|sid| self.sessions.get(sid))?;
+        let page_id = session_id.as_ref().and_then(|sid| self.sessions.get(sid))?;
         self.get_page(page_id)
     }
 
     pub fn get_session_page_mut(&mut self, session_id: &Option<String>) -> Option<&mut Page> {
-        let page_id = session_id
-            .as_ref()
-            .and_then(|sid| self.sessions.get(sid))
-            .cloned()?;
+        let page_id = session_id.as_ref().and_then(|sid| self.sessions.get(sid)).cloned()?;
 
         let target_has_js = self.pages.iter().any(|p| p.id == page_id && p.has_js());
 
@@ -118,11 +113,8 @@ pub async fn dispatch(req: &CdpRequest, ctx: &mut CdpContext) -> CdpResponse {
         "Input" => domains::input::handle(method, &req.params, ctx, &req.session_id).await,
         "Storage" => domains::storage::handle(method, &req.params, ctx, &req.session_id).await,
         "LP" => domains::lp::handle(method, &req.params, ctx, &req.session_id).await,
-        "Emulation" | "Log" | "Performance" | "Security" | "CSS"
-        | "Accessibility" | "ServiceWorker" | "Inspector"
-        | "Debugger" | "Profiler" | "HeapProfiler" | "Overlay" => {
-            Ok(json!({}))
-        }
+        "Emulation" | "Log" | "Performance" | "Security" | "CSS" | "Accessibility" | "ServiceWorker" | "Inspector"
+        | "Debugger" | "Profiler" | "HeapProfiler" | "Overlay" => Ok(json!({})),
         _ => Err(format!("Unknown domain: {}", domain)),
     };
 

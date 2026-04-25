@@ -36,9 +36,7 @@ impl Response {
     }
 
     pub fn is_html(&self) -> bool {
-        self.content_type()
-            .map(|ct| ct.contains("text/html"))
-            .unwrap_or(false)
+        self.content_type().map(|ct| ct.contains("text/html")).unwrap_or(false)
     }
 }
 
@@ -105,21 +103,22 @@ impl ObscuraHttpClient {
     }
 
     async fn get_client(&self) -> &Client {
-        self.client.get_or_init(|| async {
-            let mut builder = Client::builder()
-                .redirect(Policy::none())
-                .timeout(Duration::from_secs(30))
-                .danger_accept_invalid_certs(false)
-;
+        self.client
+            .get_or_init(|| async {
+                let mut builder = Client::builder()
+                    .redirect(Policy::none())
+                    .timeout(Duration::from_secs(30))
+                    .danger_accept_invalid_certs(false);
 
-            if let Some(ref proxy) = self.proxy_url {
-                if let Ok(p) = reqwest::Proxy::all(proxy.as_str()) {
-                    builder = builder.proxy(p);
+                if let Some(ref proxy) = self.proxy_url {
+                    if let Ok(p) = reqwest::Proxy::all(proxy.as_str()) {
+                        builder = builder.proxy(p);
+                    }
                 }
-            }
 
-            builder.build().expect("failed to build HTTP client")
-        }).await
+                builder.build().expect("failed to build HTTP client")
+            })
+            .await
     }
 
     pub async fn fetch(&self, url: &Url) -> Result<Response, ObscuraNetError> {
@@ -127,7 +126,8 @@ impl ObscuraHttpClient {
     }
 
     pub async fn post_form(&self, url: &Url, body: &str) -> Result<Response, ObscuraNetError> {
-        self.fetch_with_method(Method::POST, url, Some(body.as_bytes().to_vec())).await
+        self.fetch_with_method(Method::POST, url, Some(body.as_bytes().to_vec()))
+            .await
     }
 
     pub async fn fetch_with_method(
@@ -189,9 +189,10 @@ impl ObscuraHttpClient {
 
             let ua = self.user_agent.read().await.clone();
             let mut headers = HeaderMap::new();
-            headers.insert(USER_AGENT, HeaderValue::from_str(&ua).unwrap_or_else(|_| {
-                HeaderValue::from_static(DEFAULT_USER_AGENT)
-            }));
+            headers.insert(
+                USER_AGENT,
+                HeaderValue::from_str(&ua).unwrap_or_else(|_| HeaderValue::from_static(DEFAULT_USER_AGENT)),
+            );
             headers.insert(
                 reqwest::header::ACCEPT,
                 HeaderValue::from_static("text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"),
@@ -202,7 +203,9 @@ impl ObscuraHttpClient {
             );
             headers.insert(
                 HeaderName::from_static("sec-ch-ua"),
-                HeaderValue::from_static("\"Chromium\";v=\"145\", \"Not;A=Brand\";v=\"24\", \"Google Chrome\";v=\"145\""),
+                HeaderValue::from_static(
+                    "\"Chromium\";v=\"145\", \"Not;A=Brand\";v=\"24\", \"Google Chrome\";v=\"145\"",
+                ),
             );
             headers.insert(
                 HeaderName::from_static("sec-ch-ua-mobile"),
@@ -241,23 +244,21 @@ impl ObscuraHttpClient {
             }
 
             for (k, v) in self.extra_headers.read().await.iter() {
-                if let (Ok(name), Ok(val)) = (
-                    HeaderName::from_bytes(k.as_bytes()),
-                    HeaderValue::from_str(v),
-                ) {
+                if let (Ok(name), Ok(val)) = (HeaderName::from_bytes(k.as_bytes()), HeaderValue::from_str(v)) {
                     headers.insert(name, val);
                 }
             }
 
-            let mut req_builder = self.get_client().await.request(method.clone(), current_url.as_str())
+            let mut req_builder = self
+                .get_client()
+                .await
+                .request(method.clone(), current_url.as_str())
                 .headers(headers);
 
             if let Some(ref b) = body {
                 if method == Method::POST {
-                    req_builder = req_builder.header(
-                        reqwest::header::CONTENT_TYPE,
-                        "application/x-www-form-urlencoded",
-                    );
+                    req_builder =
+                        req_builder.header(reqwest::header::CONTENT_TYPE, "application/x-www-form-urlencoded");
                 }
                 req_builder = req_builder.body(b.clone());
             }
@@ -285,12 +286,12 @@ impl ObscuraHttpClient {
 
             if status.is_redirection() {
                 if let Some(location) = resp.headers().get(reqwest::header::LOCATION) {
-                    let location_str = location.to_str().map_err(|_| {
-                        ObscuraNetError::Network("Invalid redirect Location header".into())
-                    })?;
-                    let next_url = current_url.join(location_str).map_err(|e| {
-                        ObscuraNetError::Network(format!("Invalid redirect URL: {}", e))
-                    })?;
+                    let location_str = location
+                        .to_str()
+                        .map_err(|_| ObscuraNetError::Network("Invalid redirect Location header".into()))?;
+                    let next_url = current_url
+                        .join(location_str)
+                        .map_err(|e| ObscuraNetError::Network(format!("Invalid redirect URL: {}", e)))?;
                     validate_url(&next_url)?;
                     redirects.push(current_url.clone());
                     current_url = next_url;
@@ -305,9 +306,11 @@ impl ObscuraHttpClient {
                 }
             }
 
-            let body_bytes = resp.bytes().await.map_err(|e| {
-                ObscuraNetError::Network(format!("Failed to read body: {}", e))
-            })?.to_vec();
+            let body_bytes = resp
+                .bytes()
+                .await
+                .map_err(|e| ObscuraNetError::Network(format!("Failed to read body: {}", e)))?
+                .to_vec();
 
             let response = Response {
                 url: current_url,

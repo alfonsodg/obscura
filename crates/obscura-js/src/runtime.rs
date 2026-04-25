@@ -50,7 +50,8 @@ impl ObscuraJsRuntime {
         runtime
             .execute_script(
                 "<obscura:init>",
-                "globalThis.__obscura_objects = {}; globalThis.__obscura_oid = 0; globalThis.__obscura_init();".to_string(),
+                "globalThis.__obscura_objects = {}; globalThis.__obscura_oid = 0; globalThis.__obscura_init();"
+                    .to_string(),
             )
             .expect("init should not fail");
 
@@ -98,10 +99,9 @@ impl ObscuraJsRuntime {
 
     pub fn set_user_agent(&mut self, ua: &str) {
         let escaped = ua.replace('\\', "\\\\").replace('\'', "\\'");
-        let _ = self.runtime.execute_script(
-            "<set-ua>",
-            format!("globalThis.__obscura_ua = '{}';", escaped),
-        );
+        let _ = self
+            .runtime
+            .execute_script("<set-ua>", format!("globalThis.__obscura_ua = '{}';", escaped));
     }
     pub fn evaluate(&mut self, expression: &str) -> Result<serde_json::Value, String> {
         let wrapped = Self::wrap_expression(expression);
@@ -112,11 +112,7 @@ impl ObscuraJsRuntime {
         self.v8_to_json(result)
     }
 
-    pub fn evaluate_for_cdp(
-        &mut self,
-        expression: &str,
-        return_by_value: bool,
-    ) -> Result<RemoteObjectInfo, String> {
+    pub fn evaluate_for_cdp(&mut self, expression: &str, return_by_value: bool) -> Result<RemoteObjectInfo, String> {
         if return_by_value {
             let val = self.evaluate(expression)?;
             return Ok(Self::info_from_json(&val));
@@ -148,10 +144,8 @@ impl ObscuraJsRuntime {
         } else {
             meta_str
         };
-        self.object_store.insert(
-            oid.clone(),
-            format!("globalThis.__obscura_objects['{}']", oid),
-        );
+        self.object_store
+            .insert(oid.clone(), format!("globalThis.__obscura_objects['{}']", oid));
 
         Ok(Self::info_from_meta(&meta_json, Some(oid)))
     }
@@ -195,28 +189,26 @@ impl ObscuraJsRuntime {
             self.resolve_promises().await;
 
             if return_by_value {
-                let read = self.runtime.execute_script(
-                    "<readResult>",
-                    format!("globalThis.__obscura_objects['{}']", oid),
-                ).map_err(|e| format!("JS error: {}", e))?;
+                let read = self
+                    .runtime
+                    .execute_script("<readResult>", format!("globalThis.__obscura_objects['{}']", oid))
+                    .map_err(|e| format!("JS error: {}", e))?;
                 let json_val = self.v8_to_json(read)?;
                 return Ok(Self::info_from_json(&json_val));
             }
 
-            let meta_result = self.runtime.execute_script(
-                "<readMeta>",
-                "globalThis.__obscura_await_meta".to_string(),
-            ).map_err(|e| format!("JS error: {}", e))?;
+            let meta_result = self
+                .runtime
+                .execute_script("<readMeta>", "globalThis.__obscura_await_meta".to_string())
+                .map_err(|e| format!("JS error: {}", e))?;
             let meta_str = self.v8_to_json(meta_result)?;
             let meta_json = if let serde_json::Value::String(s) = &meta_str {
                 serde_json::from_str(s).unwrap_or(meta_str.clone())
             } else {
                 meta_str
             };
-            self.object_store.insert(
-                oid.clone(),
-                format!("globalThis.__obscura_objects['{}']", oid),
-            );
+            self.object_store
+                .insert(oid.clone(), format!("globalThis.__obscura_objects['{}']", oid));
             return Ok(Self::info_from_meta(&meta_json, Some(oid)));
         }
 
@@ -233,7 +225,8 @@ impl ObscuraJsRuntime {
                 this_expr = this_expr,
                 args = args_list,
             );
-            let result = self.runtime
+            let result = self
+                .runtime
                 .execute_script("<callFnByValue>", code)
                 .map_err(|e| format!("JS error: {}", e))?;
             let json_val = self.v8_to_json(result)?;
@@ -256,7 +249,8 @@ impl ObscuraJsRuntime {
             oid = oid,
             meta_fn = Self::meta_extract_js("__result"),
         );
-        let result = self.runtime
+        let result = self
+            .runtime
             .execute_script("<callFnRemote>", code)
             .map_err(|e| format!("JS error: {}", e))?;
         let meta_str = self.v8_to_json(result)?;
@@ -265,10 +259,8 @@ impl ObscuraJsRuntime {
         } else {
             meta_str
         };
-        self.object_store.insert(
-            oid.clone(),
-            format!("globalThis.__obscura_objects['{}']", oid),
-        );
+        self.object_store
+            .insert(oid.clone(), format!("globalThis.__obscura_objects['{}']", oid));
         Ok(Self::info_from_meta(&meta_json, Some(oid)))
     }
     pub async fn call_function_on(
@@ -278,29 +270,22 @@ impl ObscuraJsRuntime {
         arguments: &[serde_json::Value],
         return_by_value: bool,
     ) -> Result<RemoteObjectInfo, String> {
-        self.call_function_on_for_cdp(function_declaration, object_id, arguments, return_by_value, false).await
+        self.call_function_on_for_cdp(function_declaration, object_id, arguments, return_by_value, false)
+            .await
     }
     pub fn store_object(&mut self, js_expression: &str) -> Result<String, String> {
         self.object_counter += 1;
         let oid = self.make_oid(self.object_counter);
-        let code = format!(
-            "globalThis.__obscura_objects['{}'] = ({});",
-            oid, js_expression,
-        );
+        let code = format!("globalThis.__obscura_objects['{}'] = ({});", oid, js_expression,);
         self.runtime
             .execute_script("<store>", code)
             .map_err(|e| format!("Store error: {}", e))?;
-        self.object_store.insert(
-            oid.clone(),
-            format!("globalThis.__obscura_objects['{}']", oid),
-        );
+        self.object_store
+            .insert(oid.clone(), format!("globalThis.__obscura_objects['{}']", oid));
         Ok(oid)
     }
 
-    pub fn store_object_with_meta(
-        &mut self,
-        js_expression: &str,
-    ) -> Result<RemoteObjectInfo, String> {
+    pub fn store_object_with_meta(&mut self, js_expression: &str) -> Result<RemoteObjectInfo, String> {
         self.object_counter += 1;
         let oid = self.make_oid(self.object_counter);
         let code = format!(
@@ -323,33 +308,27 @@ impl ObscuraJsRuntime {
         } else {
             meta_str
         };
-        self.object_store.insert(
-            oid.clone(),
-            format!("globalThis.__obscura_objects['{}']", oid),
-        );
+        self.object_store
+            .insert(oid.clone(), format!("globalThis.__obscura_objects['{}']", oid));
         Ok(Self::info_from_meta(&meta_json, Some(oid)))
     }
 
     pub fn release_object(&mut self, object_id: &str) {
         if self.object_store.remove(object_id).is_some() {
-            let code = format!(
-                "delete globalThis.__obscura_objects['{}'];",
-                object_id,
-            );
+            let code = format!("delete globalThis.__obscura_objects['{}'];", object_id,);
             let _ = self.runtime.execute_script("<release>", code);
         }
     }
 
     pub fn release_object_group(&mut self) {
-        let _ = self.runtime.execute_script(
-            "<releaseGroup>",
-            "globalThis.__obscura_objects = {};".to_string(),
-        );
+        let _ = self
+            .runtime
+            .execute_script("<releaseGroup>", "globalThis.__obscura_objects = {};".to_string());
         self.object_store.clear();
     }
     pub async fn load_module(&mut self, url: &str) -> Result<(), String> {
-        let specifier = deno_core::ModuleSpecifier::parse(url)
-            .map_err(|e| format!("Invalid module URL {}: {}", url, e))?;
+        let specifier =
+            deno_core::ModuleSpecifier::parse(url).map_err(|e| format!("Invalid module URL {}: {}", url, e))?;
 
         let module_id = self
             .runtime
@@ -362,7 +341,8 @@ impl ObscuraJsRuntime {
         let timeout = tokio::time::timeout(
             tokio::time::Duration::from_secs(10),
             self.runtime.run_event_loop(deno_core::PollEventLoopOptions::default()),
-        ).await;
+        )
+        .await;
 
         match timeout {
             Ok(Ok(())) => {}
@@ -383,19 +363,15 @@ impl ObscuraJsRuntime {
     }
 
     pub async fn load_inline_module(&mut self, code: &str, base_url: &str) -> Result<(), String> {
-        let specifier = deno_core::ModuleSpecifier::parse(
-            &format!("{}#inline-module-{}", base_url, self.object_counter),
-        )
-        .unwrap_or_else(|_| deno_core::ModuleSpecifier::parse("about:blank").unwrap());
+        let specifier =
+            deno_core::ModuleSpecifier::parse(&format!("{}#inline-module-{}", base_url, self.object_counter))
+                .unwrap_or_else(|_| deno_core::ModuleSpecifier::parse("about:blank").unwrap());
 
         self.object_counter += 1;
 
         let module_id = self
             .runtime
-            .load_side_es_module_from_code(
-                &specifier,
-                deno_core::ModuleCodeString::from(code.to_string()),
-            )
+            .load_side_es_module_from_code(&specifier, deno_core::ModuleCodeString::from(code.to_string()))
             .await
             .map_err(|e| format!("Inline module load error: {}", e))?;
 
@@ -404,7 +380,8 @@ impl ObscuraJsRuntime {
         let timeout = tokio::time::timeout(
             tokio::time::Duration::from_secs(10),
             self.runtime.run_event_loop(deno_core::PollEventLoopOptions::default()),
-        ).await;
+        )
+        .await;
 
         match timeout {
             Ok(Ok(())) => {}
@@ -439,11 +416,7 @@ impl ObscuraJsRuntime {
         }
     }
 
-    pub fn execute_script_with_timeout(
-        &mut self,
-        source: &str,
-        timeout: std::time::Duration,
-    ) -> Result<(), String> {
+    pub fn execute_script_with_timeout(&mut self, source: &str, timeout: std::time::Duration) -> Result<(), String> {
         if timeout.is_zero() {
             self.runtime
                 .execute_script("<script>", source.to_string())
@@ -453,10 +426,7 @@ impl ObscuraJsRuntime {
 
         let isolate_handle = self.runtime.v8_isolate().thread_safe_handle();
 
-        let pair = std::sync::Arc::new((
-            std::sync::Mutex::new(false),
-            std::sync::Condvar::new(),
-        ));
+        let pair = std::sync::Arc::new((std::sync::Mutex::new(false), std::sync::Condvar::new()));
         let pair_clone = pair.clone();
 
         let watchdog = std::thread::spawn(move || {
@@ -479,9 +449,7 @@ impl ObscuraJsRuntime {
             }
         });
 
-        let result = self
-            .runtime
-            .execute_script("<script>", source.to_string());
+        let result = self.runtime.execute_script("<script>", source.to_string());
 
         {
             let (lock, cvar) = &*pair;
@@ -517,7 +485,8 @@ impl ObscuraJsRuntime {
         let _ = tokio::time::timeout(
             tokio::time::Duration::from_millis(100),
             self.runtime.run_event_loop(deno_core::PollEventLoopOptions::default()),
-        ).await;
+        )
+        .await;
     }
     pub fn take_dom(&self) -> Option<DomTree> {
         self.state.borrow_mut().dom.take()
@@ -647,10 +616,7 @@ impl ObscuraJsRuntime {
         (setup_lines.join("\n"), arg_names.join(", "))
     }
 
-    fn v8_to_json(
-        &mut self,
-        result: deno_core::v8::Global<deno_core::v8::Value>,
-    ) -> Result<serde_json::Value, String> {
+    fn v8_to_json(&mut self, result: deno_core::v8::Global<deno_core::v8::Value>) -> Result<serde_json::Value, String> {
         let scope = &mut self.runtime.handle_scope();
         let local = deno_core::v8::Local::new(scope, result);
 
@@ -675,9 +641,7 @@ impl ObscuraJsRuntime {
             if let Some(json_obj) = json_obj.to_object(scope) {
                 let stringify_str = deno_core::v8::String::new(scope, "stringify").unwrap();
                 if let Some(stringify_fn) = json_obj.get(scope, stringify_str.into()) {
-                    if let Ok(stringify_fn) =
-                        deno_core::v8::Local::<deno_core::v8::Function>::try_from(stringify_fn)
-                    {
+                    if let Ok(stringify_fn) = deno_core::v8::Local::<deno_core::v8::Function>::try_from(stringify_fn) {
                         let args = [local];
                         if let Some(result) = stringify_fn.call(scope, json_obj.into(), &args) {
                             let json_str = result.to_rust_string_lossy(scope);
@@ -747,24 +711,14 @@ impl ObscuraJsRuntime {
         }
     }
 
-    fn info_from_meta(
-        meta: &serde_json::Value,
-        object_id: Option<String>,
-    ) -> RemoteObjectInfo {
+    fn info_from_meta(meta: &serde_json::Value, object_id: Option<String>) -> RemoteObjectInfo {
         let js_type = meta
             .get("type")
             .and_then(|v| v.as_str())
             .unwrap_or("undefined")
             .to_string();
-        let subtype = meta
-            .get("subtype")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
-        let class_name = meta
-            .get("className")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string();
+        let subtype = meta.get("subtype").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let class_name = meta.get("className").and_then(|v| v.as_str()).unwrap_or("").to_string();
         let description = meta
             .get("description")
             .and_then(|v| v.as_str())
@@ -886,7 +840,11 @@ mod tests {
     fn test_navigator() {
         let mut rt = setup_runtime("<html><body></body></html>");
         let ua = rt.evaluate("navigator.userAgent").unwrap();
-        assert!(ua.as_str().unwrap().contains("Chrome"), "UA should contain Chrome: {}", ua);
+        assert!(
+            ua.as_str().unwrap().contains("Chrome"),
+            "UA should contain Chrome: {}",
+            ua
+        );
         let wd = rt.evaluate("navigator.webdriver").unwrap();
         assert_eq!(wd, serde_json::Value::Null);
         let plugins = rt.evaluate("navigator.plugins.length").unwrap();
@@ -900,17 +858,15 @@ mod tests {
         let mut rt = setup_runtime("<html><head><title>Test</title></head><body></body></html>");
         let result = rt
             .call_function_on("() => document.title", None, &[], true)
-            .await.unwrap();
+            .await
+            .unwrap();
         assert_eq!(result.value.unwrap(), serde_json::json!("Test Page"));
     }
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_call_function_on_with_args() {
         let mut rt = setup_runtime("<html><body></body></html>");
-        let args = vec![
-            serde_json::json!({"value": 10}),
-            serde_json::json!({"value": 20}),
-        ];
+        let args = vec![serde_json::json!({"value": 10}), serde_json::json!({"value": 20})];
         let result = rt.call_function_on("(a, b) => a + b", None, &args, true).await.unwrap();
         assert_eq!(result.value.unwrap().as_f64().unwrap() as i64, 30);
     }
@@ -932,7 +888,8 @@ mod tests {
         let args = vec![serde_json::json!({"value": {"name": "test", "count": 5}})];
         let result = rt
             .call_function_on("(obj) => obj.name + ':' + obj.count", None, &args, true)
-            .await.unwrap();
+            .await
+            .unwrap();
         assert_eq!(result.value.unwrap(), serde_json::json!("test:5"));
     }
 
@@ -941,7 +898,8 @@ mod tests {
         let mut rt = setup_runtime("<html><body></body></html>");
         let result = rt
             .call_function_on("() => ({a: 1, b: 2})", None, &[], true)
-            .await.unwrap();
+            .await
+            .unwrap();
         assert_eq!(result.value.unwrap(), serde_json::json!({"a": 1, "b": 2}));
     }
 
@@ -955,21 +913,21 @@ mod tests {
                 &[],
                 false,
             )
-            .await.unwrap();
+            .await
+            .unwrap();
         let oid = result.object_id.unwrap();
 
         let result2 = rt
             .call_function_on("function() { return this.getLen(); }", Some(&oid), &[], true)
-            .await.unwrap();
+            .await
+            .unwrap();
         assert_eq!(result2.value.unwrap().as_f64().unwrap() as i64, 3);
     }
 
     #[test]
     fn test_evaluate_for_cdp_detects_node() {
         let mut rt = setup_runtime("<html><body><h1>Hello</h1></body></html>");
-        let result = rt
-            .evaluate_for_cdp("document.querySelector('h1')", false)
-            .unwrap();
+        let result = rt.evaluate_for_cdp("document.querySelector('h1')", false).unwrap();
         assert_eq!(result.subtype.as_deref(), Some("node"));
         assert_eq!(result.js_type, "object");
         assert!(result.object_id.is_some());
@@ -988,39 +946,55 @@ mod tests {
         let mut rt = setup_runtime(r#"<div id="items"><span>A</span><span>B</span></div>"#);
         let args = vec![serde_json::json!({"value": "span"})];
         let result = rt
-            .call_function_on(
-                "(sel) => document.querySelectorAll(sel).length",
-                None,
-                &args,
-                true,
-            )
-            .await.unwrap();
+            .call_function_on("(sel) => document.querySelectorAll(sel).length", None, &args, true)
+            .await
+            .unwrap();
         assert_eq!(result.value.unwrap().as_f64().unwrap() as i64, 2);
     }
 
     #[test]
     fn test_inner_html_setter() {
         let mut rt = setup_runtime(r#"<div id="target"><p>Old</p></div>"#);
-        rt.execute_script("test", r#"
+        rt.execute_script(
+            "test",
+            r#"
             var el = document.getElementById('target');
             el.innerHTML = '<strong>Bold</strong><em>Italic</em>';
-        "#).unwrap();
+        "#,
+        )
+        .unwrap();
         let result = rt.evaluate("document.getElementById('target').innerHTML").unwrap();
         let html = result.as_str().unwrap();
-        assert!(html.contains("<strong>"), "innerHTML should contain <strong>, got: {}", html);
+        assert!(
+            html.contains("<strong>"),
+            "innerHTML should contain <strong>, got: {}",
+            html
+        );
         assert!(html.contains("<em>"), "innerHTML should contain <em>, got: {}", html);
-        assert!(!html.contains("Old"), "innerHTML should not contain old content, got: {}", html);
+        assert!(
+            !html.contains("Old"),
+            "innerHTML should not contain old content, got: {}",
+            html
+        );
     }
 
     #[test]
     fn test_inner_html_with_nested() {
         let mut rt = setup_runtime(r#"<div id="root"></div>"#);
-        rt.execute_script("test", r#"
+        rt.execute_script(
+            "test",
+            r#"
             var el = document.getElementById('root');
             el.innerHTML = '<ul><li>A</li><li>B</li><li>C</li></ul>';
-        "#).unwrap();
+        "#,
+        )
+        .unwrap();
         let count = rt.evaluate("document.querySelectorAll('li').length").unwrap();
-        assert_eq!(count.as_f64().unwrap() as i64, 3, "Should find 3 li elements after innerHTML set");
+        assert_eq!(
+            count.as_f64().unwrap() as i64,
+            3,
+            "Should find 3 li elements after innerHTML set"
+        );
 
         let text = rt.evaluate("document.querySelector('li').textContent").unwrap();
         assert_eq!(text, serde_json::json!("A"));
@@ -1028,10 +1002,13 @@ mod tests {
 
     #[test]
     fn test_input_value() {
-        let mut rt = setup_runtime(r#"<form><input id="name" type="text" value="initial"><textarea id="bio">old text</textarea></form>"#);
+        let mut rt = setup_runtime(
+            r#"<form><input id="name" type="text" value="initial"><textarea id="bio">old text</textarea></form>"#,
+        );
         let val = rt.evaluate("document.getElementById('name').value").unwrap();
         assert_eq!(val, serde_json::json!("initial"));
-        rt.execute_script("test", "document.getElementById('name').value = 'new value';").unwrap();
+        rt.execute_script("test", "document.getElementById('name').value = 'new value';")
+            .unwrap();
         let val2 = rt.evaluate("document.getElementById('name').value").unwrap();
         assert_eq!(val2, serde_json::json!("new value"));
         let bio = rt.evaluate("document.getElementById('bio').value").unwrap();
@@ -1068,7 +1045,8 @@ mod tests {
         let mut rt = setup_runtime(r#"<input id="cb" type="checkbox" checked>"#);
         let checked = rt.evaluate("document.getElementById('cb').checked").unwrap();
         assert_eq!(checked, serde_json::json!(true));
-        rt.execute_script("test", "document.getElementById('cb').checked = false;").unwrap();
+        rt.execute_script("test", "document.getElementById('cb').checked = false;")
+            .unwrap();
         let checked2 = rt.evaluate("document.getElementById('cb').checked").unwrap();
         assert_eq!(checked2, serde_json::json!(false));
     }
@@ -1076,24 +1054,38 @@ mod tests {
     #[test]
     fn test_matches_and_closest() {
         let mut rt = setup_runtime(r#"<div class="outer"><div class="inner"><span id="target">Hi</span></div></div>"#);
-        let matches = rt.evaluate("document.getElementById('target').matches('span')").unwrap();
+        let matches = rt
+            .evaluate("document.getElementById('target').matches('span')")
+            .unwrap();
         assert_eq!(matches, serde_json::json!(true));
-        let closest = rt.evaluate("document.getElementById('target').closest('.outer').className").unwrap();
+        let closest = rt
+            .evaluate("document.getElementById('target').closest('.outer').className")
+            .unwrap();
         assert_eq!(closest, serde_json::json!("outer"));
-        let no_match = rt.evaluate("document.getElementById('target').closest('.nonexistent')").unwrap();
+        let no_match = rt
+            .evaluate("document.getElementById('target').closest('.nonexistent')")
+            .unwrap();
         assert_eq!(no_match, serde_json::Value::Null);
     }
 
     #[test]
     fn test_clone_node_deep() {
         let mut rt = setup_runtime(r#"<div id="src"><p>A</p><p>B</p></div>"#);
-        rt.execute_script("test", r#"
+        rt.execute_script(
+            "test",
+            r#"
             var src = document.getElementById('src');
             var clone = src.cloneNode(true);
             document.body.appendChild(clone);
-        "#).unwrap();
+        "#,
+        )
+        .unwrap();
         let count = rt.evaluate("document.querySelectorAll('p').length").unwrap();
-        assert!(count.as_f64().unwrap() as i64 >= 4, "Deep clone should duplicate <p> children, got: {}", count);
+        assert!(
+            count.as_f64().unwrap() as i64 >= 4,
+            "Deep clone should duplicate <p> children, got: {}",
+            count
+        );
     }
 
     #[test]
@@ -1108,13 +1100,15 @@ mod tests {
         let mut rt = setup_runtime("<html><body></body></html>");
         let obj = rt
             .call_function_on("() => ({ x: 42 })", None, &[], false)
-            .await.unwrap();
+            .await
+            .unwrap();
         let oid = obj.object_id.unwrap();
 
         let args = vec![serde_json::json!({"objectId": oid})];
         let result = rt
             .call_function_on("(obj) => obj.x * 2", None, &args, true)
-            .await.unwrap();
+            .await
+            .unwrap();
         assert_eq!(result.value.unwrap().as_f64().unwrap() as i64, 84);
     }
 
@@ -1137,8 +1131,16 @@ mod tests {
         jar.set_cookie("theme=dark; Path=/", &url);
         let result = rt.evaluate("document.cookie").unwrap();
         let cookie_str = result.as_str().unwrap();
-        assert!(cookie_str.contains("session=abc123"), "expected session cookie, got: {}", cookie_str);
-        assert!(cookie_str.contains("theme=dark"), "expected theme cookie, got: {}", cookie_str);
+        assert!(
+            cookie_str.contains("session=abc123"),
+            "expected session cookie, got: {}",
+            cookie_str
+        );
+        assert!(
+            cookie_str.contains("theme=dark"),
+            "expected theme cookie, got: {}",
+            cookie_str
+        );
     }
 
     #[test]
@@ -1149,8 +1151,16 @@ mod tests {
         jar.set_cookie("secret=token; Path=/; HttpOnly", &url);
         let result = rt.evaluate("document.cookie").unwrap();
         let cookie_str = result.as_str().unwrap();
-        assert!(cookie_str.contains("visible=yes"), "expected visible cookie, got: {}", cookie_str);
-        assert!(!cookie_str.contains("secret"), "httpOnly cookie should not be visible to JS, got: {}", cookie_str);
+        assert!(
+            cookie_str.contains("visible=yes"),
+            "expected visible cookie, got: {}",
+            cookie_str
+        );
+        assert!(
+            !cookie_str.contains("secret"),
+            "httpOnly cookie should not be visible to JS, got: {}",
+            cookie_str
+        );
     }
 
     #[test]
@@ -1169,10 +1179,19 @@ mod tests {
         let (mut rt, jar) = setup_runtime_with_cookies("<html><body></body></html>");
         let url = url::Url::parse("http://example.com/test").unwrap();
         rt.evaluate("document.cookie = 'temp=val; Path=/'").unwrap();
-        assert!(rt.evaluate("document.cookie").unwrap().as_str().unwrap().contains("temp=val"));
+        assert!(rt
+            .evaluate("document.cookie")
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .contains("temp=val"));
         rt.evaluate("document.cookie = 'temp=; Max-Age=0'").unwrap();
         let result = rt.evaluate("document.cookie").unwrap();
-        assert!(!result.as_str().unwrap().contains("temp="), "cookie should be deleted, got: {}", result);
+        assert!(
+            !result.as_str().unwrap().contains("temp="),
+            "cookie should be deleted, got: {}",
+            result
+        );
         assert!(!jar.get_cookie_header(&url).contains("temp="));
     }
 
@@ -1184,8 +1203,16 @@ mod tests {
         rt.evaluate("document.cookie = 'client_pref=light'").unwrap();
         let result = rt.evaluate("document.cookie").unwrap();
         let cookie_str = result.as_str().unwrap();
-        assert!(cookie_str.contains("server_sid=xyz"), "expected server cookie, got: {}", cookie_str);
-        assert!(cookie_str.contains("client_pref=light"), "expected client cookie, got: {}", cookie_str);
+        assert!(
+            cookie_str.contains("server_sid=xyz"),
+            "expected server cookie, got: {}",
+            cookie_str
+        );
+        assert!(
+            cookie_str.contains("client_pref=light"),
+            "expected client cookie, got: {}",
+            cookie_str
+        );
     }
 
     #[test]
@@ -1208,7 +1235,11 @@ mod tests {
         rt.evaluate("document.write('<div>Added</div>')").unwrap();
         let html = rt.evaluate("document.body.innerHTML").unwrap();
         let body = html.as_str().unwrap();
-        assert!(body.contains("Existing"), "existing content should remain, got: {}", body);
+        assert!(
+            body.contains("Existing"),
+            "existing content should remain, got: {}",
+            body
+        );
         assert!(body.contains("Added"), "written content should appear, got: {}", body);
     }
 
@@ -1239,7 +1270,8 @@ mod tests {
     #[test]
     fn test_document_write_html_elements() {
         let mut rt = setup_runtime("<html><body></body></html>");
-        rt.evaluate(r#"document.write('<h1 id="title">Test</h1><p>Para</p>')"#).unwrap();
+        rt.evaluate(r#"document.write('<h1 id="title">Test</h1><p>Para</p>')"#)
+            .unwrap();
         let h1 = rt.evaluate("document.querySelector('h1').textContent").unwrap();
         assert_eq!(h1.as_str().unwrap(), "Test");
         let p = rt.evaluate("document.querySelector('p').textContent").unwrap();
@@ -1249,19 +1281,29 @@ mod tests {
     #[test]
     fn test_url_relative_resolution() {
         let mut rt = setup_runtime("<html><body></body></html>");
-        let result = rt.evaluate("new URL('data.json', 'http://example.com/path/page.html').href").unwrap();
+        let result = rt
+            .evaluate("new URL('data.json', 'http://example.com/path/page.html').href")
+            .unwrap();
         assert_eq!(result.as_str().unwrap(), "http://example.com/path/data.json");
 
-        let result = rt.evaluate("new URL('/api/data', 'http://example.com/path/page.html').href").unwrap();
+        let result = rt
+            .evaluate("new URL('/api/data', 'http://example.com/path/page.html').href")
+            .unwrap();
         assert_eq!(result.as_str().unwrap(), "http://example.com/api/data");
 
-        let result = rt.evaluate("new URL('https://other.com/foo', 'http://example.com/bar').href").unwrap();
+        let result = rt
+            .evaluate("new URL('https://other.com/foo', 'http://example.com/bar').href")
+            .unwrap();
         assert_eq!(result.as_str().unwrap(), "https://other.com/foo");
 
-        let result = rt.evaluate("new URL('sub/file.js', 'http://example.com/a/b/c.html').href").unwrap();
+        let result = rt
+            .evaluate("new URL('sub/file.js', 'http://example.com/a/b/c.html').href")
+            .unwrap();
         assert_eq!(result.as_str().unwrap(), "http://example.com/a/b/sub/file.js");
 
-        let result = rt.evaluate("new URL('api.json', 'http://localhost:8080/dir/index.html').href").unwrap();
+        let result = rt
+            .evaluate("new URL('api.json', 'http://localhost:8080/dir/index.html').href")
+            .unwrap();
         assert_eq!(result.as_str().unwrap(), "http://localhost:8080/dir/api.json");
     }
 
@@ -1288,18 +1330,18 @@ mod tests {
     #[test]
     fn test_xml_serializer_doctype() {
         let mut rt = setup_runtime("<!DOCTYPE html><html><body></body></html>");
-        let result = rt.evaluate(
-            "new XMLSerializer().serializeToString(document.doctype)"
-        ).unwrap();
+        let result = rt
+            .evaluate("new XMLSerializer().serializeToString(document.doctype)")
+            .unwrap();
         assert_eq!(result.as_str().unwrap(), "<!DOCTYPE html>");
     }
 
     #[test]
     fn test_xml_serializer_element() {
         let mut rt = setup_runtime(r#"<html><body><div id="x">Hello</div></body></html>"#);
-        let result = rt.evaluate(
-            "new XMLSerializer().serializeToString(document.getElementById('x'))"
-        ).unwrap();
+        let result = rt
+            .evaluate("new XMLSerializer().serializeToString(document.getElementById('x'))")
+            .unwrap();
         let html = result.as_str().unwrap();
         assert!(html.contains("<div"));
         assert!(html.contains("Hello"));
@@ -1316,5 +1358,4 @@ mod tests {
         assert!(html.contains("<html>"));
         assert!(html.contains("<p>Test</p>"));
     }
-
 }

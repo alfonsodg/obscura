@@ -238,7 +238,9 @@ impl DomTree {
 
         let mut inner = self.inner.borrow_mut();
 
-        let old_last = inner.nodes.get(parent_id.index())
+        let old_last = inner
+            .nodes
+            .get(parent_id.index())
             .and_then(|n| n.as_ref())
             .and_then(|n| n.last_child);
 
@@ -367,12 +369,16 @@ impl DomTree {
     pub fn children(&self, node_id: NodeId) -> Vec<NodeId> {
         let inner = self.inner.borrow();
         let mut result = Vec::new();
-        let mut current = inner.nodes.get(node_id.index())
+        let mut current = inner
+            .nodes
+            .get(node_id.index())
             .and_then(|n| n.as_ref())
             .and_then(|n| n.first_child);
         while let Some(child_id) = current {
             result.push(child_id);
-            current = inner.nodes.get(child_id.index())
+            current = inner
+                .nodes
+                .get(child_id.index())
                 .and_then(|n| n.as_ref())
                 .and_then(|n| n.next_sibling);
         }
@@ -384,13 +390,17 @@ impl DomTree {
         let mut result = Vec::new();
         let mut stack = Vec::new();
 
-        let mut first = inner.nodes.get(node_id.index())
+        let mut first = inner
+            .nodes
+            .get(node_id.index())
             .and_then(|n| n.as_ref())
             .and_then(|n| n.first_child);
         let mut children_to_push = Vec::new();
         while let Some(child_id) = first {
             children_to_push.push(child_id);
-            first = inner.nodes.get(child_id.index())
+            first = inner
+                .nodes
+                .get(child_id.index())
                 .and_then(|n| n.as_ref())
                 .and_then(|n| n.next_sibling);
         }
@@ -401,13 +411,17 @@ impl DomTree {
         while let Some(current) = stack.pop() {
             result.push(current);
 
-            let mut child = inner.nodes.get(current.index())
+            let mut child = inner
+                .nodes
+                .get(current.index())
                 .and_then(|n| n.as_ref())
                 .and_then(|n| n.first_child);
             let mut children_to_push = Vec::new();
             while let Some(child_id) = child {
                 children_to_push.push(child_id);
-                child = inner.nodes.get(child_id.index())
+                child = inner
+                    .nodes
+                    .get(child_id.index())
                     .and_then(|n| n.as_ref())
                     .and_then(|n| n.next_sibling);
             }
@@ -422,12 +436,16 @@ impl DomTree {
     pub fn ancestors(&self, node_id: NodeId) -> Vec<NodeId> {
         let inner = self.inner.borrow();
         let mut result = Vec::new();
-        let mut current = inner.nodes.get(node_id.index())
+        let mut current = inner
+            .nodes
+            .get(node_id.index())
             .and_then(|n| n.as_ref())
             .and_then(|n| n.parent);
         while let Some(parent_id) = current {
             result.push(parent_id);
-            current = inner.nodes.get(parent_id.index())
+            current = inner
+                .nodes
+                .get(parent_id.index())
                 .and_then(|n| n.as_ref())
                 .and_then(|n| n.parent);
         }
@@ -448,7 +466,9 @@ impl DomTree {
     pub fn append_text(&self, parent_id: NodeId, text: &str) {
         let last_child_is_text = {
             let inner = self.inner.borrow();
-            inner.nodes.get(parent_id.index())
+            inner
+                .nodes
+                .get(parent_id.index())
                 .and_then(|n| n.as_ref())
                 .and_then(|n| n.last_child)
                 .and_then(|lc| inner.nodes.get(lc.index()))
@@ -460,7 +480,9 @@ impl DomTree {
         if last_child_is_text {
             let last_child_id = {
                 let inner = self.inner.borrow();
-                inner.nodes.get(parent_id.index())
+                inner
+                    .nodes
+                    .get(parent_id.index())
                     .and_then(|n| n.as_ref())
                     .and_then(|n| n.last_child)
                     .unwrap()
@@ -484,10 +506,17 @@ impl DomTree {
         let doc = self.document();
         for child in self.children(doc) {
             if let Some(n) = self.get_node(child) {
-                if n.as_element().map(|name| name.local.as_ref() == "html").unwrap_or(false) {
+                if n.as_element()
+                    .map(|name| name.local.as_ref() == "html")
+                    .unwrap_or(false)
+                {
                     for html_child in self.children(child) {
                         if let Some(hc) = self.get_node(html_child) {
-                            if hc.as_element().map(|name| name.local.as_ref() == "body").unwrap_or(false) {
+                            if hc
+                                .as_element()
+                                .map(|name| name.local.as_ref() == "body")
+                                .unwrap_or(false)
+                            {
                                 return html_child;
                             }
                         }
@@ -551,7 +580,9 @@ fn collect_text_inner(inner: &DomTreeInner, node_id: NodeId, buf: &mut String) {
                 let mut child = node.first_child;
                 while let Some(child_id) = child {
                     collect_text_inner(inner, child_id, buf);
-                    child = inner.nodes.get(child_id.index())
+                    child = inner
+                        .nodes
+                        .get(child_id.index())
                         .and_then(|n| n.as_ref())
                         .and_then(|n| n.next_sibling);
                 }
@@ -649,8 +680,12 @@ mod tests {
         });
         tree.append_child(doc, div);
 
-        let t1 = tree.new_node(NodeData::Text { contents: "Hello ".into() });
-        let t2 = tree.new_node(NodeData::Text { contents: "World".into() });
+        let t1 = tree.new_node(NodeData::Text {
+            contents: "Hello ".into(),
+        });
+        let t2 = tree.new_node(NodeData::Text {
+            contents: "World".into(),
+        });
         tree.append_child(div, t1);
         tree.append_child(div, t2);
 

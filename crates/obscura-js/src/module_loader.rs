@@ -31,11 +31,7 @@ impl ModuleLoader for ObscuraModuleLoader {
         referrer: &str,
         _kind: deno_core::ResolutionKind,
     ) -> Result<ModuleSpecifier, ModuleLoaderError> {
-        let base = if referrer.is_empty()
-            || referrer.starts_with('<')
-            || referrer == "."
-            || referrer == "about:blank"
-        {
+        let base = if referrer.is_empty() || referrer.starts_with('<') || referrer == "." || referrer == "about:blank" {
             &self.base_url
         } else {
             referrer
@@ -54,10 +50,8 @@ impl ModuleLoader for ObscuraModuleLoader {
         let url = module_specifier.to_string();
 
         ModuleLoadResponse::Async(Pin::from(Box::new(async move {
-            let parsed_url = url::Url::parse(&url)
-                .map_err(|e| io_err(format!("Invalid module URL: {}", e)))?;
-            obscura_net::validate_url(&parsed_url)
-                .map_err(|e| io_err(format!("Blocked module URL: {}", e)))?;
+            let parsed_url = url::Url::parse(&url).map_err(|e| io_err(format!("Invalid module URL: {}", e)))?;
+            obscura_net::validate_url(&parsed_url).map_err(|e| io_err(format!("Blocked module URL: {}", e)))?;
 
             let client = reqwest::Client::builder()
                 .timeout(std::time::Duration::from_secs(30))
@@ -74,19 +68,16 @@ impl ModuleLoader for ObscuraModuleLoader {
                 .map_err(|e| io_err(format!("Failed to fetch module {}: {}", url, e)))?;
 
             if !resp.status().is_success() {
-                return Err(io_err(format!(
-                    "Module {} returned HTTP {}",
-                    url,
-                    resp.status()
-                )));
+                return Err(io_err(format!("Module {} returned HTTP {}", url, resp.status())));
             }
 
-            let code = resp.text().await.map_err(|e| {
-                io_err(format!("Failed to read module body {}: {}", url, e))
-            })?;
+            let code = resp
+                .text()
+                .await
+                .map_err(|e| io_err(format!("Failed to read module body {}: {}", url, e)))?;
 
-            let specifier = ModuleSpecifier::parse(&url)
-                .map_err(|e| io_err(format!("Invalid module URL {}: {}", url, e)))?;
+            let specifier =
+                ModuleSpecifier::parse(&url).map_err(|e| io_err(format!("Invalid module URL {}: {}", url, e)))?;
 
             Ok(ModuleSource::new(
                 deno_core::ModuleType::JavaScript,

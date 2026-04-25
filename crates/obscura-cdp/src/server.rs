@@ -18,9 +18,7 @@ pub(crate) struct CdpMessage {
 
 pub(crate) enum ServerMessage {
     Cdp(CdpMessage),
-    NewConnection {
-        reply_tx: mpsc::UnboundedSender<String>,
-    },
+    NewConnection { reply_tx: mpsc::UnboundedSender<String> },
 }
 
 pub async fn start(port: u16) -> anyhow::Result<()> {
@@ -32,10 +30,7 @@ pub async fn start_with_options(port: u16, proxy: Option<String>) -> anyhow::Res
     let listener = TcpListener::bind(&addr).await?;
 
     info!("Obscura CDP server listening on ws://127.0.0.1:{}", port);
-    info!(
-        "DevTools endpoint: ws://127.0.0.1:{}/devtools/browser",
-        port
-    );
+    info!("DevTools endpoint: ws://127.0.0.1:{}/devtools/browser", port);
 
     let local = tokio::task::LocalSet::new();
     local
@@ -64,23 +59,18 @@ pub async fn start_with_options(port: u16, proxy: Option<String>) -> anyhow::Res
         .await
 }
 
-async fn cdp_processor(
-    mut rx: mpsc::UnboundedReceiver<ServerMessage>,
-    proxy: Option<String>,
-) {
+async fn cdp_processor(mut rx: mpsc::UnboundedReceiver<ServerMessage>, proxy: Option<String>) {
     let mut ctx = CdpContext::new_with_proxy(proxy);
     let (itx, irx) = mpsc::unbounded_channel::<obscura_js::ops::InterceptedRequest>();
     ctx.intercept_tx = Some(itx);
     let mut intercept_rx: Option<mpsc::UnboundedReceiver<obscura_js::ops::InterceptedRequest>> = Some(irx);
-    let mut intercepted_paused: HashMap<String, tokio::sync::oneshot::Sender<obscura_js::ops::InterceptResolution>> = HashMap::new();
+    let mut intercepted_paused: HashMap<String, tokio::sync::oneshot::Sender<obscura_js::ops::InterceptResolution>> =
+        HashMap::new();
 
     while let Some(msg) = rx.recv().await {
         match msg {
             ServerMessage::NewConnection { reply_tx } => {
-                let _ = reply_tx.send(
-                    json!({"__init": true})
-                        .to_string(),
-                );
+                let _ = reply_tx.send(json!({"__init": true}).to_string());
             }
             ServerMessage::Cdp(cdp_msg) => {
                 let is_navigation = cdp_msg.text.contains("Page.navigate");
@@ -88,12 +78,22 @@ async fn cdp_processor(
 
                 if is_navigation && has_interception {
                     crate::interception::process_with_interception(
-                        &cdp_msg.text, &mut ctx, &cdp_msg.reply_tx, &mut rx,
-                        &mut intercept_rx, &mut intercepted_paused,
-                    ).await;
+                        &cdp_msg.text,
+                        &mut ctx,
+                        &cdp_msg.reply_tx,
+                        &mut rx,
+                        &mut intercept_rx,
+                        &mut intercepted_paused,
+                    )
+                    .await;
                 } else {
                     if cdp_msg.text.contains("Fetch.") {
-                        crate::interception::handle_fetch_resolution(&cdp_msg.text, &mut ctx, &cdp_msg.reply_tx, &mut intercepted_paused);
+                        crate::interception::handle_fetch_resolution(
+                            &cdp_msg.text,
+                            &mut ctx,
+                            &cdp_msg.reply_tx,
+                            &mut intercepted_paused,
+                        );
                     }
                     crate::http::process_cdp_message(&cdp_msg.text, &mut ctx, &cdp_msg.reply_tx).await;
                 }

@@ -54,7 +54,11 @@ pub(crate) async fn run_multi_worker_serve(
                 let worker_addr = format!("127.0.0.1:{}", port + 1);
                 if let Ok(mut worker_stream) = tokio::net::TcpStream::connect(&worker_addr).await {
                     tokio::spawn(async move {
-                        let _ = tokio::io::copy_bidirectional(&mut tokio::net::TcpStream::from_std(client_stream.into_std().unwrap()).unwrap(), &mut worker_stream).await;
+                        let _ = tokio::io::copy_bidirectional(
+                            &mut tokio::net::TcpStream::from_std(client_stream.into_std().unwrap()).unwrap(),
+                            &mut worker_stream,
+                        )
+                        .await;
                     });
                 }
                 continue;

@@ -13,9 +13,9 @@ use tokio::sync::RwLock;
 use url::Url;
 
 #[cfg(feature = "stealth")]
-use crate::cookies::CookieJar;
+use crate::client::{ObscuraNetError, Response};
 #[cfg(feature = "stealth")]
-use crate::client::{Response, ObscuraNetError};
+use crate::cookies::CookieJar;
 #[cfg(feature = "stealth")]
 use crate::validate_url;
 
@@ -110,12 +110,12 @@ impl StealthHttpClient {
 
             if status.is_redirection() {
                 if let Some(location) = resp.headers().get("location") {
-                    let location_str = location.to_str().map_err(|_| {
-                        ObscuraNetError::Network("Invalid redirect Location".into())
-                    })?;
-                    let next_url = current_url.join(location_str).map_err(|e| {
-                        ObscuraNetError::Network(format!("Invalid redirect URL: {}", e))
-                    })?;
+                    let location_str = location
+                        .to_str()
+                        .map_err(|_| ObscuraNetError::Network("Invalid redirect Location".into()))?;
+                    let next_url = current_url
+                        .join(location_str)
+                        .map_err(|e| ObscuraNetError::Network(format!("Invalid redirect URL: {}", e)))?;
                     validate_url(&next_url)?;
                     redirects.push(current_url.clone());
                     current_url = next_url;
@@ -123,9 +123,11 @@ impl StealthHttpClient {
                 }
             }
 
-            let body = resp.bytes().await.map_err(|e| {
-                ObscuraNetError::Network(format!("Failed to read body: {}", e))
-            })?.to_vec();
+            let body = resp
+                .bytes()
+                .await
+                .map_err(|e| ObscuraNetError::Network(format!("Failed to read body: {}", e)))?
+                .to_vec();
 
             return Ok(Response {
                 url: current_url,

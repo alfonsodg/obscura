@@ -17,12 +17,14 @@ impl Page {
                 js.set_dom(d);
             }
 
-            let _ = js.execute_script("<reset>",
+            let _ = js.execute_script(
+                "<reset>",
                 "_cache.clear(); globalThis.__obscura_objects = {}; globalThis.__obscura_oid = 0; \
                  _iframeRegistry.length = 0; globalThis.length = 0; \
                  globalThis._formValues = {}; globalThis._formChecked = {}; \
                  globalThis._eventRegistry = {}; \
-                 globalThis.document = new Document(+_dom('document_node_id'));");
+                 globalThis.document = new Document(+_dom('document_node_id'));",
+            );
 
             return;
         }
@@ -69,8 +71,8 @@ impl Page {
         }
 
         let all_scripts = match &self.js {
-            Some(js) => {
-                js.with_dom(|dom| {
+            Some(js) => js
+                .with_dom(|dom| {
                     let script_ids = dom.query_selector_all("script").unwrap_or_default();
                     let mut scripts = Vec::new();
 
@@ -108,8 +110,8 @@ impl Page {
                         }
                     }
                     scripts
-                }).unwrap_or_default()
-            }
+                })
+                .unwrap_or_default(),
             None => return,
         };
 
@@ -134,8 +136,14 @@ impl Page {
 
         let scripts = regular;
 
-        tracing::info!("Found {} regular + {} deferred + {} async scripts", scripts.len(), deferred.len(), async_scripts.len());
-        let all_to_execute: Vec<ScriptInfo> = scripts.into_iter()
+        tracing::info!(
+            "Found {} regular + {} deferred + {} async scripts",
+            scripts.len(),
+            deferred.len(),
+            async_scripts.len()
+        );
+        let all_to_execute: Vec<ScriptInfo> = scripts
+            .into_iter()
             .chain(deferred.into_iter())
             .chain(async_scripts.into_iter())
             .collect();
@@ -148,7 +156,9 @@ impl Page {
                 let full_url = if src_url.starts_with("http://") || src_url.starts_with("https://") {
                     src_url.clone()
                 } else if let Some(base) = &self.url {
-                    base.join(src_url).map(|u| u.to_string()).unwrap_or_else(|_| src_url.clone())
+                    base.join(src_url)
+                        .map(|u| u.to_string())
+                        .unwrap_or_else(|_| src_url.clone())
                 } else {
                     src_url.clone()
                 };
@@ -163,25 +173,29 @@ impl Page {
         }
 
         let client = self.http_client.clone();
-        let fetch_futures: Vec<_> = fetch_tasks.iter().map(|(idx, url)| {
-            let client = client.clone();
-            let url = url.clone();
-            let idx = *idx;
-            async move {
-                let parsed = Url::parse(&url).unwrap_or_else(|_| Url::parse("about:blank").unwrap());
-                match client.fetch(&parsed).await {
-                    Ok(resp) => Some((idx, url, resp)),
-                    Err(e) => {
-                        tracing::warn!("Failed to fetch script {}: {}", url, e);
-                        None
+        let fetch_futures: Vec<_> = fetch_tasks
+            .iter()
+            .map(|(idx, url)| {
+                let client = client.clone();
+                let url = url.clone();
+                let idx = *idx;
+                async move {
+                    let parsed = Url::parse(&url).unwrap_or_else(|_| Url::parse("about:blank").unwrap());
+                    match client.fetch(&parsed).await {
+                        Ok(resp) => Some((idx, url, resp)),
+                        Err(e) => {
+                            tracing::warn!("Failed to fetch script {}: {}", url, e);
+                            None
+                        }
                     }
                 }
-            }
-        }).collect();
+            })
+            .collect();
 
         let fetch_results = futures::future::join_all(fetch_futures).await;
 
-        let mut fetched: std::collections::HashMap<usize, (String, String, obscura_net::Response)> = std::collections::HashMap::new();
+        let mut fetched: std::collections::HashMap<usize, (String, String, obscura_net::Response)> =
+            std::collections::HashMap::new();
         for result in fetch_results {
             if let Some((idx, url, resp)) = result {
                 let code = String::from_utf8_lossy(&resp.body).to_string();
@@ -224,7 +238,14 @@ impl Page {
                     match js.load_module(&full_url).await {
                         Ok(()) => {
                             tracing::info!("ES module loaded: {}", full_url);
-                            self.record_network_event(&full_url, "GET", "Script", 200, &std::collections::HashMap::new(), 0);
+                            self.record_network_event(
+                                &full_url,
+                                "GET",
+                                "Script",
+                                200,
+                                &std::collections::HashMap::new(),
+                                0,
+                            );
                         }
                         Err(e) => {
                             tracing::warn!("ES module error ({}): {}", full_url, e);
@@ -242,20 +263,19 @@ impl Page {
         }
 
         if let Some(js) = &mut self.js {
-            let _ = js.execute_script("<load-events>",
+            let _ = js.execute_script(
+                "<load-events>",
                 "if (typeof window.onload === 'function') { try { window.onload(); } catch(e) {} }\n\
                  try { document.dispatchEvent(new Event('DOMContentLoaded')); } catch(e) {}\n\
-                 try { window.dispatchEvent(new Event('load')); } catch(e) {}");
+                 try { window.dispatchEvent(new Event('load')); } catch(e) {}",
+            );
         }
 
         if let Some(js) = &mut self.js {
             let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_millis(500);
             let mut idle_count = 0u32;
             loop {
-                let result = tokio::time::timeout(
-                    tokio::time::Duration::from_millis(10),
-                    js.run_event_loop(),
-                ).await;
+                let result = tokio::time::timeout(tokio::time::Duration::from_millis(10), js.run_event_loop()).await;
 
                 match result {
                     Ok(Ok(())) => {
@@ -349,7 +369,10 @@ impl Page {
         await_promise: bool,
     ) -> obscura_js::runtime::RemoteObjectInfo {
         if let Some(js) = &mut self.js {
-            match js.call_function_on_for_cdp(function_declaration, object_id, args, return_by_value, await_promise).await {
+            match js
+                .call_function_on_for_cdp(function_declaration, object_id, args, return_by_value, await_promise)
+                .await
+            {
                 Ok(info) => info,
                 Err(e) => {
                     tracing::debug!("callFunctionOn error: {}", e);

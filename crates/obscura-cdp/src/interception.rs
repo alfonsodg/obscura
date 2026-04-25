@@ -4,8 +4,8 @@ use serde_json::json;
 use tokio::sync::mpsc;
 
 use crate::dispatch::CdpContext;
-use crate::types::CdpRequest;
 use crate::server::ServerMessage;
+use crate::types::CdpRequest;
 
 pub(crate) fn handle_fetch_resolution(
     text: &str,
@@ -16,28 +16,50 @@ pub(crate) fn handle_fetch_resolution(
     if let Ok(req) = serde_json::from_str::<CdpRequest>(text) {
         let method = req.method.as_str();
         let request_id = req.params.get("requestId").and_then(|v| v.as_str()).unwrap_or("");
-        tracing::info!("INTERCEPTION resolution: {} for {}, paused_count={}", method, request_id, intercepted_paused.len());
+        tracing::info!(
+            "INTERCEPTION resolution: {} for {}, paused_count={}",
+            method,
+            request_id,
+            intercepted_paused.len()
+        );
 
         if let Some(resolver) = intercepted_paused.remove(request_id) {
             tracing::info!("INTERCEPTION resolved: {}", request_id);
             let resolution = match method {
                 "Fetch.continueRequest" => obscura_js::ops::InterceptResolution::Continue {
-                    url: None, method: None, headers: None, body: None,
+                    url: None,
+                    method: None,
+                    headers: None,
+                    body: None,
                 },
                 "Fetch.fulfillRequest" => {
                     let status = req.params.get("responseCode").and_then(|v| v.as_u64()).unwrap_or(200) as u16;
                     let raw_body = req.params.get("body").and_then(|v| v.as_str()).unwrap_or("");
                     let body = decode_base64(raw_body);
-                    let headers = req.params.get("responseHeaders")
+                    let headers = req
+                        .params
+                        .get("responseHeaders")
                         .and_then(|v| v.as_array())
-                        .map(|arr| arr.iter().filter_map(|h| {
-                            Some((h.get("name")?.as_str()?.to_string(), h.get("value")?.as_str()?.to_string()))
-                        }).collect())
+                        .map(|arr| {
+                            arr.iter()
+                                .filter_map(|h| {
+                                    Some((
+                                        h.get("name")?.as_str()?.to_string(),
+                                        h.get("value")?.as_str()?.to_string(),
+                                    ))
+                                })
+                                .collect()
+                        })
                         .unwrap_or_default();
                     obscura_js::ops::InterceptResolution::Fulfill { status, headers, body }
                 }
                 "Fetch.failRequest" => {
-                    let reason = req.params.get("errorReason").and_then(|v| v.as_str()).unwrap_or("Failed").to_string();
+                    let reason = req
+                        .params
+                        .get("errorReason")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("Failed")
+                        .to_string();
                     obscura_js::ops::InterceptResolution::Fail { reason }
                 }
                 _ => return,
@@ -70,10 +92,7 @@ pub(crate) async fn process_with_interception(
     tracing::info!("INTERCEPTION navigate: {} (id={})", req.method, req.id);
 
     let session_id = &req.session_id;
-    let page_id = session_id
-        .as_ref()
-        .and_then(|sid| ctx.sessions.get(sid))
-        .cloned();
+    let page_id = session_id.as_ref().and_then(|sid| ctx.sessions.get(sid)).cloned();
 
     let page_id = match page_id {
         Some(id) => id,
@@ -93,7 +112,9 @@ pub(crate) async fn process_with_interception(
     };
 
     let url = req.params.get("url").and_then(|v| v.as_str()).unwrap_or("");
-    let wait_until = req.params.get("waitUntil")
+    let wait_until = req
+        .params
+        .get("waitUntil")
         .and_then(|v| {
             if let Some(s) = v.as_str() {
                 Some(obscura_browser::WaitUntil::from_str(s))
@@ -127,7 +148,10 @@ pub(crate) async fn process_with_interception(
     let url_owned = url.to_string();
 
     tokio::task::spawn_local(async move {
-        let result = page.navigate_with_wait(&url_owned, wait_until).await.map_err(|e| e.to_string());
+        let result = page
+            .navigate_with_wait(&url_owned, wait_until)
+            .await
+            .map_err(|e| e.to_string());
         for source in &preload_scripts {
             if let Err(e) = page.execute_preload_script(source) {
                 tracing::debug!("Preload script error: {}", e);
@@ -248,7 +272,16 @@ pub(crate) async fn process_with_interception(
         let _ = reply_tx.send(json);
     }
 
-    emit_lifecycle_events(reply_tx, &session_for_events, &frame_id, &loader_id, &page_url, &page_id_for_events, &network_events, reached_network_idle);
+    emit_lifecycle_events(
+        reply_tx,
+        &session_for_events,
+        &frame_id,
+        &loader_id,
+        &page_url,
+        &page_id_for_events,
+        &network_events,
+        reached_network_idle,
+    );
 }
 
 fn emit_lifecycle_events(
@@ -261,42 +294,111 @@ fn emit_lifecycle_events(
     network_events: &[obscura_browser::page::NetworkEvent],
     reached_network_idle: bool,
 ) {
-    let ts = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs_f64();
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs_f64();
 
     for event in [
-        crate::types::CdpEvent { method: "Page.lifecycleEvent".into(), params: json!({"frameId": frame_id, "loaderId": loader_id, "name": "init", "timestamp": ts}), session_id: es.clone() },
-        crate::types::CdpEvent { method: "Runtime.executionContextsCleared".into(), params: json!({}), session_id: es.clone() },
-        crate::types::CdpEvent { method: "Page.frameNavigated".into(), params: json!({"frame": {"id": frame_id, "loaderId": loader_id, "url": page_url, "domainAndRegistry": "", "securityOrigin": page_url, "mimeType": "text/html", "adFrameStatus": {"adFrameType": "none"}}, "type": "Navigation"}), session_id: es.clone() },
-        crate::types::CdpEvent { method: "Runtime.executionContextCreated".into(), params: json!({"context": {"id": 2, "origin": page_url, "name": "", "uniqueId": format!("ctx-nav-{}", page_id_for_events), "auxData": {"isDefault": true, "type": "default", "frameId": frame_id}}}), session_id: es.clone() },
-        crate::types::CdpEvent { method: "Page.lifecycleEvent".into(), params: json!({"frameId": frame_id, "loaderId": loader_id, "name": "commit", "timestamp": ts}), session_id: es.clone() },
+        crate::types::CdpEvent {
+            method: "Page.lifecycleEvent".into(),
+            params: json!({"frameId": frame_id, "loaderId": loader_id, "name": "init", "timestamp": ts}),
+            session_id: es.clone(),
+        },
+        crate::types::CdpEvent {
+            method: "Runtime.executionContextsCleared".into(),
+            params: json!({}),
+            session_id: es.clone(),
+        },
+        crate::types::CdpEvent {
+            method: "Page.frameNavigated".into(),
+            params: json!({"frame": {"id": frame_id, "loaderId": loader_id, "url": page_url, "domainAndRegistry": "", "securityOrigin": page_url, "mimeType": "text/html", "adFrameStatus": {"adFrameType": "none"}}, "type": "Navigation"}),
+            session_id: es.clone(),
+        },
+        crate::types::CdpEvent {
+            method: "Runtime.executionContextCreated".into(),
+            params: json!({"context": {"id": 2, "origin": page_url, "name": "", "uniqueId": format!("ctx-nav-{}", page_id_for_events), "auxData": {"isDefault": true, "type": "default", "frameId": frame_id}}}),
+            session_id: es.clone(),
+        },
+        crate::types::CdpEvent {
+            method: "Page.lifecycleEvent".into(),
+            params: json!({"frameId": frame_id, "loaderId": loader_id, "name": "commit", "timestamp": ts}),
+            session_id: es.clone(),
+        },
     ] {
-        if let Ok(json) = serde_json::to_string(&event) { let _ = reply_tx.send(json); }
+        if let Ok(json) = serde_json::to_string(&event) {
+            let _ = reply_tx.send(json);
+        }
     }
 
     for net_event in network_events {
         for event in [
-            crate::types::CdpEvent { method: "Network.requestWillBeSent".into(), params: json!({"requestId": net_event.request_id, "loaderId": loader_id, "documentURL": page_url, "request": {"url": net_event.url, "method": net_event.method, "headers": net_event.headers}, "timestamp": net_event.timestamp, "wallTime": net_event.timestamp, "initiator": {"type": "other"}, "type": net_event.resource_type, "frameId": frame_id}), session_id: es.clone() },
-            crate::types::CdpEvent { method: "Network.responseReceived".into(), params: json!({"requestId": net_event.request_id, "loaderId": loader_id, "timestamp": net_event.timestamp, "type": net_event.resource_type, "response": {"url": net_event.url, "status": net_event.status, "statusText": "", "headers": &*net_event.response_headers, "mimeType": ""}, "frameId": frame_id}), session_id: es.clone() },
-            crate::types::CdpEvent { method: "Network.loadingFinished".into(), params: json!({"requestId": net_event.request_id, "timestamp": net_event.timestamp, "encodedDataLength": net_event.body_size}), session_id: es.clone() },
+            crate::types::CdpEvent {
+                method: "Network.requestWillBeSent".into(),
+                params: json!({"requestId": net_event.request_id, "loaderId": loader_id, "documentURL": page_url, "request": {"url": net_event.url, "method": net_event.method, "headers": net_event.headers}, "timestamp": net_event.timestamp, "wallTime": net_event.timestamp, "initiator": {"type": "other"}, "type": net_event.resource_type, "frameId": frame_id}),
+                session_id: es.clone(),
+            },
+            crate::types::CdpEvent {
+                method: "Network.responseReceived".into(),
+                params: json!({"requestId": net_event.request_id, "loaderId": loader_id, "timestamp": net_event.timestamp, "type": net_event.resource_type, "response": {"url": net_event.url, "status": net_event.status, "statusText": "", "headers": &*net_event.response_headers, "mimeType": ""}, "frameId": frame_id}),
+                session_id: es.clone(),
+            },
+            crate::types::CdpEvent {
+                method: "Network.loadingFinished".into(),
+                params: json!({"requestId": net_event.request_id, "timestamp": net_event.timestamp, "encodedDataLength": net_event.body_size}),
+                session_id: es.clone(),
+            },
         ] {
-            if let Ok(json) = serde_json::to_string(&event) { let _ = reply_tx.send(json); }
+            if let Ok(json) = serde_json::to_string(&event) {
+                let _ = reply_tx.send(json);
+            }
         }
     }
 
     for event in [
-        crate::types::CdpEvent { method: "Page.lifecycleEvent".into(), params: json!({"frameId": frame_id, "loaderId": loader_id, "name": "DOMContentLoaded", "timestamp": ts}), session_id: es.clone() },
-        crate::types::CdpEvent { method: "Page.domContentEventFired".into(), params: json!({"timestamp": ts}), session_id: es.clone() },
-        crate::types::CdpEvent { method: "Page.lifecycleEvent".into(), params: json!({"frameId": frame_id, "loaderId": loader_id, "name": "load", "timestamp": ts}), session_id: es.clone() },
-        crate::types::CdpEvent { method: "Page.loadEventFired".into(), params: json!({"timestamp": ts}), session_id: es.clone() },
+        crate::types::CdpEvent {
+            method: "Page.lifecycleEvent".into(),
+            params: json!({"frameId": frame_id, "loaderId": loader_id, "name": "DOMContentLoaded", "timestamp": ts}),
+            session_id: es.clone(),
+        },
+        crate::types::CdpEvent {
+            method: "Page.domContentEventFired".into(),
+            params: json!({"timestamp": ts}),
+            session_id: es.clone(),
+        },
+        crate::types::CdpEvent {
+            method: "Page.lifecycleEvent".into(),
+            params: json!({"frameId": frame_id, "loaderId": loader_id, "name": "load", "timestamp": ts}),
+            session_id: es.clone(),
+        },
+        crate::types::CdpEvent {
+            method: "Page.loadEventFired".into(),
+            params: json!({"timestamp": ts}),
+            session_id: es.clone(),
+        },
     ] {
-        if let Ok(json) = serde_json::to_string(&event) { let _ = reply_tx.send(json); }
+        if let Ok(json) = serde_json::to_string(&event) {
+            let _ = reply_tx.send(json);
+        }
     }
     if reached_network_idle {
-        let idle_event = crate::types::CdpEvent { method: "Page.lifecycleEvent".into(), params: json!({"frameId": frame_id, "loaderId": loader_id, "name": "networkIdle", "timestamp": ts}), session_id: es.clone() };
-        if let Ok(json) = serde_json::to_string(&idle_event) { let _ = reply_tx.send(json); }
+        let idle_event = crate::types::CdpEvent {
+            method: "Page.lifecycleEvent".into(),
+            params: json!({"frameId": frame_id, "loaderId": loader_id, "name": "networkIdle", "timestamp": ts}),
+            session_id: es.clone(),
+        };
+        if let Ok(json) = serde_json::to_string(&idle_event) {
+            let _ = reply_tx.send(json);
+        }
     }
-    let stop_event = crate::types::CdpEvent { method: "Page.frameStoppedLoading".into(), params: json!({"frameId": frame_id}), session_id: es.clone() };
-    if let Ok(json) = serde_json::to_string(&stop_event) { let _ = reply_tx.send(json); }
+    let stop_event = crate::types::CdpEvent {
+        method: "Page.frameStoppedLoading".into(),
+        params: json!({"frameId": frame_id}),
+        session_id: es.clone(),
+    };
+    if let Ok(json) = serde_json::to_string(&stop_event) {
+        let _ = reply_tx.send(json);
+    }
 }
 
 fn decode_base64(input: &str) -> String {

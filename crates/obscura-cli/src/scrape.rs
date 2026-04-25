@@ -13,10 +13,7 @@ pub(crate) async fn run_parallel_scrape(
     let total = urls.len();
     let start = Instant::now();
 
-    eprintln!(
-        "Scraping {} URLs with {} concurrent workers...",
-        total, concurrency
-    );
+    eprintln!("Scraping {} URLs with {} concurrent workers...", total, concurrency);
 
     let worker_path = std::env::current_exe()
         .ok()
@@ -92,10 +89,7 @@ pub(crate) async fn run_parallel_scrape(
                 });
             }
 
-            let title = nav_resp["result"]["title"]
-                .as_str()
-                .unwrap_or("")
-                .to_string();
+            let title = nav_resp["result"]["title"].as_str().unwrap_or("").to_string();
 
             let eval_result = if let Some(ref expr) = *eval {
                 let eval_cmd = serde_json::json!({"cmd": "evaluate", "expression": expr});
@@ -106,8 +100,8 @@ pub(crate) async fn run_parallel_scrape(
 
                 let mut resp_line = String::new();
                 if reader.read_line(&mut resp_line).await.is_ok() {
-                    let resp: serde_json::Value = serde_json::from_str(resp_line.trim())
-                        .unwrap_or(serde_json::json!({"ok": false}));
+                    let resp: serde_json::Value =
+                        serde_json::from_str(resp_line.trim()).unwrap_or(serde_json::json!({"ok": false}));
                     resp["result"].clone()
                 } else {
                     serde_json::Value::Null

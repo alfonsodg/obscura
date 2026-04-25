@@ -66,11 +66,7 @@ pub async fn handle(
                 .and_then(|v| v.as_array())
                 .map(|arr| {
                     arr.iter()
-                        .filter_map(|p| {
-                            p.get("urlPattern")
-                                .and_then(|v| v.as_str())
-                                .map(|s| s.to_string())
-                        })
+                        .filter_map(|p| p.get("urlPattern").and_then(|v| v.as_str()).map(|s| s.to_string()))
                         .collect::<Vec<_>>()
                 })
                 .unwrap_or_else(|| vec!["*".to_string()]);
@@ -129,10 +125,7 @@ pub async fn handle(
                 .and_then(|v| v.as_str())
                 .ok_or("requestId required")?;
 
-            let status = params
-                .get("responseCode")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(200) as u16;
+            let status = params.get("responseCode").and_then(|v| v.as_u64()).unwrap_or(200) as u16;
             let headers: HashMap<String, String> = params
                 .get("responseHeaders")
                 .and_then(|v| v.as_array())
@@ -146,11 +139,7 @@ pub async fn handle(
                         .collect()
                 })
                 .unwrap_or_default();
-            let body = params
-                .get("body")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
+            let body = params.get("body").and_then(|v| v.as_str()).unwrap_or("").to_string();
 
             if let Some(paused) = ctx.fetch_intercept.paused.remove(request_id) {
                 let _ = paused.resolver.send(FetchResolution::Fulfill {
@@ -178,9 +167,7 @@ pub async fn handle(
             }
             Ok(json!({}))
         }
-        "getResponseBody" => {
-            Ok(json!({ "body": "", "base64Encoded": false }))
-        }
+        "getResponseBody" => Ok(json!({ "body": "", "base64Encoded": false })),
         _ => Err(format!("Unknown Fetch method: {}", method)),
     }
 }

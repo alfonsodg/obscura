@@ -20,7 +20,10 @@ impl RobotsCache {
 
     pub fn parse_and_store(&self, domain: &str, body: &str, our_agent: &str) {
         let rules = parse_robots_txt(body, our_agent);
-        self.cache.write().unwrap_or_else(|e| e.into_inner()).insert(domain.to_string(), rules);
+        self.cache
+            .write()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(domain.to_string(), rules);
     }
 
     pub fn is_allowed(&self, domain: &str, path: &str) -> bool {
@@ -72,9 +75,8 @@ fn parse_robots_txt(body: &str, our_agent: &str) -> RobotsRules {
             match key.as_str() {
                 "user-agent" => {
                     let agent = value.to_lowercase();
-                    in_matching_section = agent == "*"
-                        || our_agent_lower.contains(&agent)
-                        || agent.contains(&our_agent_lower);
+                    in_matching_section =
+                        agent == "*" || our_agent_lower.contains(&agent) || agent.contains(&our_agent_lower);
                     if agent != "*" && in_matching_section {
                         found_specific = true;
                     }
@@ -97,7 +99,9 @@ fn parse_robots_txt(body: &str, our_agent: &str) -> RobotsRules {
 
         for line in body.lines() {
             let line = line.trim();
-            if line.is_empty() || line.starts_with('#') { continue; }
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
             if let Some((key, value)) = line.split_once(':') {
                 let key = key.trim().to_lowercase();
                 let value = value.trim();

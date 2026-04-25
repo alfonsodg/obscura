@@ -28,9 +28,9 @@ pub(crate) async fn run_fetch(
         eprintln!("Fetching {}...", url_str);
     }
 
-    page.navigate_with_wait(url_str, wait_condition).await.map_err(|e| {
-        anyhow::anyhow!("Failed to navigate to {}: {}", url_str, e)
-    })?;
+    page.navigate_with_wait(url_str, wait_condition)
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to navigate to {}: {}", url_str, e))?;
 
     if !quiet {
         eprintln!("Page loaded: {} - \"{}\"", page.url_string(), page.title);
@@ -71,9 +71,9 @@ pub(crate) async fn run_fetch(
 async fn wait_for_selector(page: &mut Page, selector: &str, timeout_secs: u64) -> bool {
     let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(timeout_secs);
     loop {
-        let found = page.with_dom(|dom| {
-            dom.query_selector(selector).ok().flatten().is_some()
-        }).unwrap_or(false);
+        let found = page
+            .with_dom(|dom| dom.query_selector(selector).ok().flatten().is_some())
+            .unwrap_or(false);
 
         if found {
             return true;
@@ -130,12 +130,38 @@ fn extract_readable_text(dom: &obscura_dom::DomTree, node_id: obscura_dom::NodeI
             let tag = name.local.as_ref();
             let is_block = matches!(
                 tag,
-                "div" | "p" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6"
-                    | "li" | "tr" | "br" | "hr" | "blockquote" | "pre"
-                    | "section" | "article" | "header" | "footer" | "nav"
-                    | "main" | "aside" | "figure" | "figcaption" | "table"
-                    | "thead" | "tbody" | "tfoot" | "dl" | "dt" | "dd"
-                    | "ul" | "ol"
+                "div"
+                    | "p"
+                    | "h1"
+                    | "h2"
+                    | "h3"
+                    | "h4"
+                    | "h5"
+                    | "h6"
+                    | "li"
+                    | "tr"
+                    | "br"
+                    | "hr"
+                    | "blockquote"
+                    | "pre"
+                    | "section"
+                    | "article"
+                    | "header"
+                    | "footer"
+                    | "nav"
+                    | "main"
+                    | "aside"
+                    | "figure"
+                    | "figcaption"
+                    | "table"
+                    | "thead"
+                    | "tbody"
+                    | "tfoot"
+                    | "dl"
+                    | "dt"
+                    | "dd"
+                    | "ul"
+                    | "ol"
             );
 
             if tag == "script" || tag == "style" {

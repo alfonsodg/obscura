@@ -67,26 +67,20 @@ pub async fn handle(
                         }
                     }
 
-                    let path = c
-                        .get("path")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("/")
-                        .to_string();
-                    let secure =
-                        c.get("secure").and_then(|v| v.as_bool()).unwrap_or(false);
-                    let http_only =
-                        c.get("httpOnly").and_then(|v| v.as_bool()).unwrap_or(false);
+                    let path = c.get("path").and_then(|v| v.as_str()).unwrap_or("/").to_string();
+                    let secure = c.get("secure").and_then(|v| v.as_bool()).unwrap_or(false);
+                    let http_only = c.get("httpOnly").and_then(|v| v.as_bool()).unwrap_or(false);
 
-                    ctx.default_context.cookie_jar.set_cookies_from_cdp(vec![
-                        obscura_net::CookieInfo {
+                    ctx.default_context
+                        .cookie_jar
+                        .set_cookies_from_cdp(vec![obscura_net::CookieInfo {
                             name,
                             value,
                             domain,
                             path,
                             secure,
                             http_only,
-                        },
-                    ]);
+                        }]);
                 }
             }
             Ok(json!({}))
@@ -106,9 +100,7 @@ pub async fn handle(
                 .unwrap_or_default();
 
             if !name.is_empty() {
-                ctx.default_context
-                    .cookie_jar
-                    .delete_cookie(name, &domain);
+                ctx.default_context.cookie_jar.delete_cookie(name, &domain);
             }
             Ok(json!({}))
         }

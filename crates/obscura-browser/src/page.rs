@@ -79,13 +79,21 @@ impl Page {
             return false;
         }
         for pattern in &self.intercept_block_patterns {
-            if pattern == "*" { return true; }
+            if pattern == "*" {
+                return true;
+            }
             if pattern.starts_with('*') && pattern.ends_with('*') {
-                if url.contains(&pattern[1..pattern.len()-1]) { return true; }
+                if url.contains(&pattern[1..pattern.len() - 1]) {
+                    return true;
+                }
             } else if pattern.starts_with('*') {
-                if url.ends_with(&pattern[1..]) { return true; }
+                if url.ends_with(&pattern[1..]) {
+                    return true;
+                }
             } else if pattern.ends_with('*') {
-                if url.starts_with(&pattern[..pattern.len()-1]) { return true; }
+                if url.starts_with(&pattern[..pattern.len() - 1]) {
+                    return true;
+                }
             } else if url.contains(pattern) {
                 return true;
             }
@@ -102,7 +110,8 @@ impl Page {
     }
 
     pub async fn navigate(&mut self, url_str: &str) -> Result<(), PageError> {
-        self.navigate_with_wait(url_str, crate::lifecycle::WaitUntil::Load).await
+        self.navigate_with_wait(url_str, crate::lifecycle::WaitUntil::Load)
+            .await
     }
 
     pub async fn navigate_with_wait(
@@ -124,9 +133,15 @@ impl Page {
         let mut current_method = method.to_string();
         let mut current_body = body.to_string();
         for _chain in 0..10 {
-            self.navigate_single(&current_url, wait_until, &current_method, &current_body).await?;
+            self.navigate_single(&current_url, wait_until, &current_method, &current_body)
+                .await?;
             if let Some((next_url, next_method, next_body)) = self.take_pending_navigation() {
-                tracing::info!("JS-triggered navigation chain: {} {} -> {}", current_method, current_url, next_url);
+                tracing::info!(
+                    "JS-triggered navigation chain: {} {} -> {}",
+                    current_method,
+                    current_url,
+                    next_url
+                );
                 current_url = next_url;
                 current_method = next_method;
                 current_body = next_body;
@@ -158,11 +173,9 @@ impl Page {
                         if let Ok(resp) = self.http_client.fetch(&robots_url).await {
                             if resp.status == 200 {
                                 let body = String::from_utf8_lossy(&resp.body);
-                                self.context.robots_cache.parse_and_store(
-                                    domain,
-                                    &body,
-                                    &self.context.user_agent,
-                                );
+                                self.context
+                                    .robots_cache
+                                    .parse_and_store(domain, &body, &self.context.user_agent);
                             }
                         }
                     }
@@ -170,10 +183,7 @@ impl Page {
 
                 if !self.context.robots_cache.is_allowed(domain, url.path()) {
                     self.lifecycle = LifecycleState::Failed;
-                    return Err(PageError::NetworkError(format!(
-                        "Blocked by robots.txt: {}",
-                        url
-                    )));
+                    return Err(PageError::NetworkError(format!("Blocked by robots.txt: {}", url)));
                 }
             }
         }
@@ -182,7 +192,8 @@ impl Page {
             self.http_client.post_form(&url, body).await
         } else {
             self.do_fetch(&url).await
-        }.map_err(|e| {
+        }
+        .map_err(|e| {
             self.lifecycle = LifecycleState::Failed;
             PageError::NetworkError(e.to_string())
         })?;
@@ -241,27 +252,37 @@ impl Page {
         }
 
         let client = self.http_client.clone();
-        let css_futures: Vec<_> = css_fetch_urls.iter().map(|full_url| {
-            let client = client.clone();
-            let url_str = full_url.clone();
-            async move {
-                let parsed = Url::parse(&url_str).unwrap_or_else(|_| Url::parse("about:blank").unwrap());
-                match client.fetch(&parsed).await {
-                    Ok(resp) => Some((url_str, resp)),
-                    Err(e) => {
-                        tracing::debug!("Failed to fetch stylesheet {}: {}", url_str, e);
-                        None
+        let css_futures: Vec<_> = css_fetch_urls
+            .iter()
+            .map(|full_url| {
+                let client = client.clone();
+                let url_str = full_url.clone();
+                async move {
+                    let parsed = Url::parse(&url_str).unwrap_or_else(|_| Url::parse("about:blank").unwrap());
+                    match client.fetch(&parsed).await {
+                        Ok(resp) => Some((url_str, resp)),
+                        Err(e) => {
+                            tracing::debug!("Failed to fetch stylesheet {}: {}", url_str, e);
+                            None
+                        }
                     }
                 }
-            }
-        }).collect();
+            })
+            .collect();
 
         let css_results = futures::future::join_all(css_futures).await;
         let mut css_sources = Vec::new();
         for result in css_results {
             if let Some((url_str, resp)) = result {
                 let css = String::from_utf8_lossy(&resp.body).to_string();
-                self.record_network_event(&url_str, "GET", "Stylesheet", resp.status, &resp.headers, resp.body.len());
+                self.record_network_event(
+                    &url_str,
+                    "GET",
+                    "Stylesheet",
+                    resp.status,
+                    &resp.headers,
+                    resp.body.len(),
+                );
                 css_sources.push(css);
             }
         }
@@ -338,10 +359,7 @@ impl Page {
                 }
 
                 if let Some(js) = &mut self.js {
-                    let _ = tokio::time::timeout(
-                        tokio::time::Duration::from_millis(50),
-                        js.run_event_loop(),
-                    ).await;
+                    let _ = tokio::time::timeout(tokio::time::Duration::from_millis(50), js.run_event_loop()).await;
                 } else {
                     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
                 }

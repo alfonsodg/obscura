@@ -47,7 +47,9 @@ impl TreeSink for DomTree {
 
     fn elem_name<'a>(&'a self, target: &'a NodeId) -> ObscuraElemName<'a> {
         let borrow = self.borrow_inner();
-        let node = borrow.nodes.get(target.index())
+        let node = borrow
+            .nodes
+            .get(target.index())
             .and_then(|n| n.as_ref())
             .expect("elem_name called on invalid node");
         let name_ptr: *const QualName = match &node.data {
@@ -61,12 +63,7 @@ impl TreeSink for DomTree {
         }
     }
 
-    fn create_element(
-        &self,
-        name: QualName,
-        attrs: Vec<HtmlAttribute>,
-        flags: ElementFlags,
-    ) -> NodeId {
+    fn create_element(&self, name: QualName, attrs: Vec<HtmlAttribute>, flags: ElementFlags) -> NodeId {
         let converted_attrs: Vec<Attribute> = attrs
             .into_iter()
             .map(|a| Attribute {
@@ -118,12 +115,7 @@ impl TreeSink for DomTree {
         }
     }
 
-    fn append_based_on_parent_node(
-        &self,
-        element: &NodeId,
-        prev_element: &NodeId,
-        child: NodeOrText<NodeId>,
-    ) {
+    fn append_based_on_parent_node(&self, element: &NodeId, prev_element: &NodeId, child: NodeOrText<NodeId>) {
         let has_parent = self.with_node(*element, |n| n.parent.is_some()).unwrap_or(false);
         if has_parent {
             self.append_before_sibling(element, child);
@@ -132,12 +124,7 @@ impl TreeSink for DomTree {
         }
     }
 
-    fn append_doctype_to_document(
-        &self,
-        name: StrTendril,
-        public_id: StrTendril,
-        system_id: StrTendril,
-    ) {
+    fn append_doctype_to_document(&self, name: StrTendril, public_id: StrTendril, system_id: StrTendril) {
         let doctype = self.new_node(NodeData::Doctype {
             name: name.to_string(),
             public_id: public_id.to_string(),
@@ -218,14 +205,14 @@ impl TreeSink for DomTree {
         x == y
     }
 
-    fn set_quirks_mode(&self, _mode: QuirksMode) {
-    }
+    fn set_quirks_mode(&self, _mode: QuirksMode) {}
 
     fn is_mathml_annotation_xml_integration_point(&self, target: &NodeId) -> bool {
         self.with_node(*target, |n| match &n.data {
-            NodeData::Element { mathml_annotation_xml_integration_point, .. } => {
-                *mathml_annotation_xml_integration_point
-            }
+            NodeData::Element {
+                mathml_annotation_xml_integration_point,
+                ..
+            } => *mathml_annotation_xml_integration_point,
             _ => false,
         })
         .unwrap_or(false)

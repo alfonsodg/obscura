@@ -105,7 +105,9 @@ pub async fn handle(method: &str, params: &Value, ctx: &mut CdpContext) -> Resul
             Ok(json!({ "targetId": page_id }))
         }
         "attachToTarget" => {
-            let target_id = params.get("targetId").and_then(|v| v.as_str())
+            let target_id = params
+                .get("targetId")
+                .and_then(|v| v.as_str())
                 .ok_or("targetId required")?;
             let session_id = format!("{}-session", target_id);
             ctx.sessions.insert(session_id.clone(), target_id.to_string());
@@ -131,7 +133,9 @@ pub async fn handle(method: &str, params: &Value, ctx: &mut CdpContext) -> Resul
             Ok(json!({ "sessionId": session_id }))
         }
         "closeTarget" => {
-            let target_id = params.get("targetId").and_then(|v| v.as_str())
+            let target_id = params
+                .get("targetId")
+                .and_then(|v| v.as_str())
                 .ok_or("targetId required")?;
             let session_id = format!("{}-session", target_id);
 
@@ -151,9 +155,7 @@ pub async fn handle(method: &str, params: &Value, ctx: &mut CdpContext) -> Resul
             Ok(json!({ "success": true }))
         }
         "setAutoAttach" => Ok(json!({})),
-        "getBrowserContexts" => {
-            Ok(json!({ "browserContextIds": [ctx.default_context.id] }))
-        }
+        "getBrowserContexts" => Ok(json!({ "browserContextIds": [ctx.default_context.id] })),
         "createBrowserContext" => {
             ctx.default_context.cookie_jar.clear();
             Ok(json!({ "browserContextId": ctx.default_context.id }))
@@ -178,17 +180,15 @@ pub async fn handle(method: &str, params: &Value, ctx: &mut CdpContext) -> Resul
                         }
                     }))
                 }
-                None => {
-                    Ok(json!({
-                        "targetInfo": {
-                            "targetId": "browser",
-                            "type": "browser",
-                            "title": "",
-                            "url": "",
-                            "attached": true,
-                        }
-                    }))
-                }
+                None => Ok(json!({
+                    "targetInfo": {
+                        "targetId": "browser",
+                        "type": "browser",
+                        "title": "",
+                        "url": "",
+                        "attached": true,
+                    }
+                })),
             }
         }
         _ => Err(format!("Unknown Target method: {}", method)),

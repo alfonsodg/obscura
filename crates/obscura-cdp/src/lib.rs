@@ -1,8 +1,8 @@
-pub mod server;
 pub mod dispatch;
-pub mod types;
 pub mod domains;
-pub(crate) mod interception;
 pub(crate) mod http;
+pub(crate) mod interception;
+pub mod server;
+pub mod types;
 
 pub use server::{start, start_with_options};

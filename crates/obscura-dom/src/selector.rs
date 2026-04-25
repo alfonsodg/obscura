@@ -5,12 +5,11 @@ use selectors::attr::{AttrSelectorOperation, CaseSensitivity, NamespaceConstrain
 use selectors::bloom::BloomFilter;
 use selectors::context::QuirksMode;
 use selectors::matching::{
-    ElementSelectorFlags, MatchingContext, MatchingForInvalidation, MatchingMode,
-    NeedsSelectorFlags,
+    ElementSelectorFlags, MatchingContext, MatchingForInvalidation, MatchingMode, NeedsSelectorFlags,
 };
 use selectors::parser::{self, ParseRelative, SelectorParseErrorKind};
-use selectors::{Element, OpaqueElement, SelectorList};
 use selectors::visitor::SelectorVisitor;
+use selectors::{Element, OpaqueElement, SelectorList};
 
 use crate::tree::{DomTree, NodeData, NodeId};
 
@@ -115,10 +114,7 @@ impl parser::NonTSPseudoClass for PseudoClass {
     }
 
     fn is_user_action_state(&self) -> bool {
-        matches!(
-            self,
-            PseudoClass::Hover | PseudoClass::Active | PseudoClass::Focus
-        )
+        matches!(self, PseudoClass::Hover | PseudoClass::Active | PseudoClass::Focus)
     }
 
     fn visit<V>(&self, _visitor: &mut V) -> bool
@@ -180,9 +176,7 @@ impl<'i> parser::Parser<'i> for ObscuraSelectorParser {
             "disabled" => Ok(PseudoClass::Disabled),
             "checked" => Ok(PseudoClass::Checked),
             _ => Err(cssparser::ParseError {
-                kind: cssparser::ParseErrorKind::Custom(
-                    SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name),
-                ),
+                kind: cssparser::ParseErrorKind::Custom(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name)),
                 location: _location,
             }),
         }
@@ -291,9 +285,7 @@ impl<'a> Element for DomElement<'a> {
     fn is_html_element_in_html_document(&self) -> bool {
         self.tree
             .with_node(self.node_id, |n| {
-                n.as_element()
-                    .map(|name| name.ns == ns!(html))
-                    .unwrap_or(false)
+                n.as_element().map(|name| name.ns == ns!(html)).unwrap_or(false)
             })
             .unwrap_or(false)
     }
@@ -301,9 +293,7 @@ impl<'a> Element for DomElement<'a> {
     fn has_local_name(&self, local_name: &CssLocalName) -> bool {
         self.tree
             .with_node(self.node_id, |n| {
-                n.as_element()
-                    .map(|name| name.local == local_name.0)
-                    .unwrap_or(false)
+                n.as_element().map(|name| name.local == local_name.0).unwrap_or(false)
             })
             .unwrap_or(false)
     }
@@ -311,20 +301,24 @@ impl<'a> Element for DomElement<'a> {
     fn has_namespace(&self, ns: &CssNamespace) -> bool {
         self.tree
             .with_node(self.node_id, |n| {
-                n.as_element()
-                    .map(|name| name.ns == ns.0)
-                    .unwrap_or(false)
+                n.as_element().map(|name| name.ns == ns.0).unwrap_or(false)
             })
             .unwrap_or(false)
     }
 
     fn is_same_type(&self, other: &Self) -> bool {
-        let self_name = self.tree.with_node(self.node_id, |n| {
-            n.as_element().map(|name| (name.local.clone(), name.ns.clone()))
-        }).flatten();
-        let other_name = self.tree.with_node(other.node_id, |n| {
-            n.as_element().map(|name| (name.local.clone(), name.ns.clone()))
-        }).flatten();
+        let self_name = self
+            .tree
+            .with_node(self.node_id, |n| {
+                n.as_element().map(|name| (name.local.clone(), name.ns.clone()))
+            })
+            .flatten();
+        let other_name = self
+            .tree
+            .with_node(other.node_id, |n| {
+                n.as_element().map(|name| (name.local.clone(), name.ns.clone()))
+            })
+            .flatten();
         match (self_name, other_name) {
             (Some((al, ans)), Some((bl, bns))) => al == bl && ans == bns,
             _ => false,
@@ -362,29 +356,20 @@ impl<'a> Element for DomElement<'a> {
             .with_node(self.node_id, |node| {
                 node.attrs()
                     .map(|attrs| {
-                        attrs.iter().any(|a| {
-                            a.name.ns == html5ever::ns!()
-                                && a.name.local == local_name.0
-                        })
+                        attrs
+                            .iter()
+                            .any(|a| a.name.ns == html5ever::ns!() && a.name.local == local_name.0)
                     })
                     .unwrap_or(false)
             })
             .unwrap_or(false)
     }
 
-    fn match_non_ts_pseudo_class(
-        &self,
-        _pc: &PseudoClass,
-        _context: &mut MatchingContext<'_, Self::Impl>,
-    ) -> bool {
+    fn match_non_ts_pseudo_class(&self, _pc: &PseudoClass, _context: &mut MatchingContext<'_, Self::Impl>) -> bool {
         false
     }
 
-    fn match_pseudo_element(
-        &self,
-        _pe: &PseudoElement,
-        _context: &mut MatchingContext<'_, Self::Impl>,
-    ) -> bool {
+    fn match_pseudo_element(&self, _pe: &PseudoElement, _context: &mut MatchingContext<'_, Self::Impl>) -> bool {
         false
     }
 
@@ -395,8 +380,7 @@ impl<'a> Element for DomElement<'a> {
             .with_node(self.node_id, |n| {
                 n.as_element()
                     .map(|name| {
-                        matches!(name.local.as_ref(), "a" | "area" | "link")
-                            && n.get_attribute("href").is_some()
+                        matches!(name.local.as_ref(), "a" | "area" | "link") && n.get_attribute("href").is_some()
                     })
                     .unwrap_or(false)
             })
@@ -472,11 +456,7 @@ impl<'a> Element for DomElement<'a> {
         self.tree
             .with_node(self.node_id, |n| {
                 n.parent
-                    .map(|parent_id| {
-                        self.tree
-                            .with_node(parent_id, |p| p.is_document())
-                            .unwrap_or(false)
-                    })
+                    .map(|parent_id| self.tree.with_node(parent_id, |p| p.is_document()).unwrap_or(false))
                     .unwrap_or(false)
             })
             .unwrap_or(false)
@@ -516,11 +496,7 @@ impl DomTree {
             let is_element = self.with_node(desc_id, |n| n.is_element()).unwrap_or(false);
             if is_element {
                 let element = DomElement::new(self, desc_id);
-                if selectors::matching::matches_selector_list(
-                    &selector_list,
-                    &element,
-                    &mut context,
-                ) {
+                if selectors::matching::matches_selector_list(&selector_list, &element, &mut context) {
                     return Ok(Some(desc_id));
                 }
             }
@@ -546,11 +522,7 @@ impl DomTree {
             let is_element = self.with_node(desc_id, |n| n.is_element()).unwrap_or(false);
             if is_element {
                 let element = DomElement::new(self, desc_id);
-                if selectors::matching::matches_selector_list(
-                    &selector_list,
-                    &element,
-                    &mut context,
-                ) {
+                if selectors::matching::matches_selector_list(&selector_list, &element, &mut context) {
                     results.push(desc_id);
                 }
             }
@@ -574,8 +546,7 @@ mod tests {
 
     #[test]
     fn test_query_selector_class() {
-        let tree =
-            parse_html(r#"<div class="foo bar">Content</div><div class="baz">Other</div>"#);
+        let tree = parse_html(r#"<div class="foo bar">Content</div><div class="baz">Other</div>"#);
         let result = tree.query_selector(".foo").unwrap();
         assert!(result.is_some());
         let node = tree.get_node(result.unwrap()).unwrap();
@@ -598,8 +569,7 @@ mod tests {
 
     #[test]
     fn test_query_selector_descendant() {
-        let tree =
-            parse_html(r#"<div id="outer"><div id="inner"><span>Target</span></div></div>"#);
+        let tree = parse_html(r#"<div id="outer"><div id="inner"><span>Target</span></div></div>"#);
         let result = tree.query_selector("#outer span").unwrap();
         assert!(result.is_some());
         let node = tree.get_node(result.unwrap()).unwrap();
@@ -608,9 +578,7 @@ mod tests {
 
     #[test]
     fn test_query_selector_attribute() {
-        let tree = parse_html(
-            r#"<input type="text" name="user"><input type="password" name="pass">"#,
-        );
+        let tree = parse_html(r#"<input type="text" name="user"><input type="password" name="pass">"#);
         let result = tree.query_selector(r#"input[type="password"]"#).unwrap();
         assert!(result.is_some());
         let node = tree.get_node(result.unwrap()).unwrap();

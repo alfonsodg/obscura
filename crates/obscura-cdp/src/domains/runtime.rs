@@ -37,14 +37,9 @@ pub async fn handle(
                 .get("expression")
                 .and_then(|v| v.as_str())
                 .ok_or("expression required")?;
-            let return_by_value = params
-                .get("returnByValue")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false);
+            let return_by_value = params.get("returnByValue").and_then(|v| v.as_bool()).unwrap_or(false);
 
-            let page = ctx
-                .get_session_page_mut(session_id)
-                .ok_or("No page")?;
+            let page = ctx.get_session_page_mut(session_id).ok_or("No page")?;
             let info = page.evaluate_for_cdp(expression, return_by_value);
 
             Ok(json!({ "result": remote_object_from_info(&info) }))
@@ -54,14 +49,8 @@ pub async fn handle(
                 .get("functionDeclaration")
                 .and_then(|v| v.as_str())
                 .unwrap_or("() => undefined");
-            let return_by_value = params
-                .get("returnByValue")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false);
-            let await_promise = params
-                .get("awaitPromise")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false);
+            let return_by_value = params.get("returnByValue").and_then(|v| v.as_bool()).unwrap_or(false);
+            let await_promise = params.get("awaitPromise").and_then(|v| v.as_bool()).unwrap_or(false);
             let object_id = params.get("objectId").and_then(|v| v.as_str());
             let arguments = params
                 .get("arguments")
@@ -69,20 +58,23 @@ pub async fn handle(
                 .map(|a| a.to_vec())
                 .unwrap_or_default();
 
-            let page = ctx
-                .get_session_page_mut(session_id)
-                .ok_or("No page")?;
-            let info =
-                page.call_function_on_for_cdp(function_declaration, object_id, &arguments, return_by_value, await_promise).await;
+            let page = ctx.get_session_page_mut(session_id).ok_or("No page")?;
+            let info = page
+                .call_function_on_for_cdp(
+                    function_declaration,
+                    object_id,
+                    &arguments,
+                    return_by_value,
+                    await_promise,
+                )
+                .await;
 
             Ok(json!({ "result": remote_object_from_info(&info) }))
         }
         "getProperties" => {
             let object_id = params.get("objectId").and_then(|v| v.as_str());
             if let Some(oid) = object_id {
-                let page = ctx
-                    .get_session_page_mut(session_id)
-                    .ok_or("No page")?;
+                let page = ctx.get_session_page_mut(session_id).ok_or("No page")?;
                 let escaped_oid = oid.replace('\\', "\\\\").replace('\'', "\\'");
                 let code = format!(
                     "(function() {{\
@@ -102,8 +94,7 @@ pub async fn handle(
                         .map(|p| {
                             let name = p.get("name").and_then(|v| v.as_str()).unwrap_or("");
                             let value = p.get("value").unwrap_or(&Value::Null);
-                            let prop_type =
-                                p.get("type").and_then(|v| v.as_str()).unwrap_or("undefined");
+                            let prop_type = p.get("type").and_then(|v| v.as_str()).unwrap_or("undefined");
                             let mut remote = json!({
                                 "type": prop_type,
                             });
@@ -165,7 +156,8 @@ pub async fn handle(
             let name = params.get("name").and_then(|v| v.as_str()).unwrap_or("");
             if !name.is_empty() {
                 if name.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '$')
-                    && !name.chars().next().unwrap_or('0').is_ascii_digit() {
+                    && !name.chars().next().unwrap_or('0').is_ascii_digit()
+                {
                     if let Some(page) = ctx.get_session_page_mut(session_id) {
                         let code = format!(
                             "if (typeof globalThis.{name} === 'undefined') {{\

@@ -47,10 +47,7 @@ fn main() {
     .expect("Failed to create V8 snapshot");
 
     std::fs::write(&snapshot_path, &*output.output).expect("Failed to write snapshot");
-    println!(
-        "cargo:rustc-env=OBSCURA_SNAPSHOT_PATH={}",
-        snapshot_path.display()
-    );
+    println!("cargo:rustc-env=OBSCURA_SNAPSHOT_PATH={}", snapshot_path.display());
 
     for file in &output.files_loaded_during_snapshot {
         println!("cargo:rerun-if-changed={}", file.display());

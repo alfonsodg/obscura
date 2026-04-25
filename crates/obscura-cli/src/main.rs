@@ -5,7 +5,10 @@ mod serve;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(name = "obscura", about = "Obscura - A lightweight headless browser for web scraping and automation")]
+#[command(
+    name = "obscura",
+    about = "Obscura - A lightweight headless browser for web scraping and automation"
+)]
 struct Args {
     #[arg(short, long, global = true)]
     verbose: bool,
@@ -95,7 +98,8 @@ enum DumpFormat {
 }
 
 fn print_banner(port: u16) {
-    println!(r#"
+    println!(
+        r#"
    ____  _                              
   / __ \| |                             
  | |  | | |__  ___  ___ _   _ _ __ __ _ 
@@ -105,7 +109,9 @@ fn print_banner(port: u16) {
                    
   Headless Browser v0.1.0
   CDP server: ws://127.0.0.1:{}/devtools/browser
-"#, port);
+"#,
+        port
+    );
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -122,7 +128,13 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     match args.command {
-        Some(Command::Serve { port, proxy, user_agent, stealth, workers }) => {
+        Some(Command::Serve {
+            port,
+            proxy,
+            user_agent,
+            stealth,
+            workers,
+        }) => {
             print_banner(port);
             if let Some(ref proxy) = proxy {
                 tracing::info!("Using proxy: {}", proxy);
@@ -141,10 +153,36 @@ async fn main() -> anyhow::Result<()> {
                 obscura_cdp::start_with_options(port, proxy).await?;
             }
         }
-        Some(Command::Fetch { url, dump, selector, wait, wait_until, user_agent, stealth, eval, quiet }) => {
-            fetch::run_fetch(&url, dump, selector, wait, &wait_until, user_agent, stealth, eval, quiet).await?;
+        Some(Command::Fetch {
+            url,
+            dump,
+            selector,
+            wait,
+            wait_until,
+            user_agent,
+            stealth,
+            eval,
+            quiet,
+        }) => {
+            fetch::run_fetch(
+                &url,
+                dump,
+                selector,
+                wait,
+                &wait_until,
+                user_agent,
+                stealth,
+                eval,
+                quiet,
+            )
+            .await?;
         }
-        Some(Command::Scrape { urls, eval, concurrency, format }) => {
+        Some(Command::Scrape {
+            urls,
+            eval,
+            concurrency,
+            format,
+        }) => {
             scrape::run_parallel_scrape(urls, eval, concurrency, &format).await?;
         }
         None => {

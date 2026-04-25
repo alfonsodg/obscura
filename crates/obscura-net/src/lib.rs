@@ -1,15 +1,15 @@
+pub mod blocklist;
 pub mod client;
 pub mod cookies;
 pub mod interceptor;
 pub mod robots;
-pub mod blocklist;
 #[cfg(feature = "stealth")]
 pub mod wreq_client;
 
+pub use blocklist::is_blocked as is_tracker_blocked;
 pub use client::{ObscuraHttpClient, ObscuraNetError, RequestInfo, ResourceType, Response};
 pub use cookies::{CookieInfo, CookieJar};
 pub use robots::RobotsCache;
-pub use blocklist::is_blocked as is_tracker_blocked;
 #[cfg(feature = "stealth")]
 pub use wreq_client::{StealthHttpClient, STEALTH_USER_AGENT};
 
@@ -90,21 +90,42 @@ mod tests {
 
     #[test]
     fn rejects_private_ips() {
-        for addr in ["http://127.0.0.1", "http://10.0.0.1", "http://192.168.1.1", "http://169.254.169.254"] {
-            assert!(validate_url(&Url::parse(addr).unwrap()).is_err(), "should reject {}", addr);
+        for addr in [
+            "http://127.0.0.1",
+            "http://10.0.0.1",
+            "http://192.168.1.1",
+            "http://169.254.169.254",
+        ] {
+            assert!(
+                validate_url(&Url::parse(addr).unwrap()).is_err(),
+                "should reject {}",
+                addr
+            );
         }
     }
 
     #[test]
     fn rejects_localhost() {
-        for host in ["http://localhost", "http://foo.localhost", "http://sub.localhost:8080/path"] {
-            assert!(validate_url(&Url::parse(host).unwrap()).is_err(), "should reject {}", host);
+        for host in [
+            "http://localhost",
+            "http://foo.localhost",
+            "http://sub.localhost:8080/path",
+        ] {
+            assert!(
+                validate_url(&Url::parse(host).unwrap()).is_err(),
+                "should reject {}",
+                host
+            );
         }
     }
 
     #[test]
     fn allows_public_urls() {
-        for u in ["https://google.com", "https://api.github.com/repos", "http://93.184.216.34"] {
+        for u in [
+            "https://google.com",
+            "https://api.github.com/repos",
+            "http://93.184.216.34",
+        ] {
             assert!(validate_url(&Url::parse(u).unwrap()).is_ok(), "should allow {}", u);
         }
     }
