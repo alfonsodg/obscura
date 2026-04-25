@@ -126,9 +126,26 @@ fn op_dom(state: &OpState, #[string] cmd: String, #[string] arg1: String, #[stri
             .flatten()
             .map(|id| id.index().to_string())
             .unwrap_or("-1".into()),
+        "query_selector_within" => {
+            let root_nid = arg2.parse::<u32>().unwrap_or(0);
+            dom.query_selector_within(&arg1, NodeId::new(root_nid))
+                .ok()
+                .flatten()
+                .map(|id| id.index().to_string())
+                .unwrap_or("-1".into())
+        }
         "query_selector_all" => {
             let ids: Vec<i32> = dom
                 .query_selector_all(&arg1)
+                .ok()
+                .map(|ids| ids.iter().map(|id| id.index() as i32).collect())
+                .unwrap_or_default();
+            serde_json::to_string(&ids).unwrap_or("[]".into())
+        }
+        "query_selector_all_within" => {
+            let root_nid = arg2.parse::<u32>().unwrap_or(0);
+            let ids: Vec<i32> = dom
+                .query_selector_all_within(&arg1, NodeId::new(root_nid))
                 .ok()
                 .map(|ids| ids.iter().map(|id| id.index() as i32).collect())
                 .unwrap_or_default();

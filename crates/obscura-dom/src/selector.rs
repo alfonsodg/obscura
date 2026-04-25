@@ -529,6 +529,61 @@ impl DomTree {
         }
         Ok(results)
     }
+
+    /// Like query_selector but scoped to descendants of `root`.
+    pub fn query_selector_within(&self, selector: &str, root: NodeId) -> Result<Option<NodeId>, String> {
+        let selector_list = parse_selector(selector)?;
+        let mut caches = selectors::context::SelectorCaches::default();
+        let mut context = MatchingContext::new(
+            MatchingMode::Normal,
+            None,
+            &mut caches,
+            QuirksMode::NoQuirks,
+            NeedsSelectorFlags::No,
+            MatchingForInvalidation::No,
+        );
+        for desc_id in self.descendants(root) {
+            if desc_id == root {
+                continue;
+            }
+            let is_element = self.with_node(desc_id, |n| n.is_element()).unwrap_or(false);
+            if is_element {
+                let element = DomElement::new(self, desc_id);
+                if selectors::matching::matches_selector_list(&selector_list, &element, &mut context) {
+                    return Ok(Some(desc_id));
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    /// Like query_selector_all but scoped to descendants of `root`.
+    pub fn query_selector_all_within(&self, selector: &str, root: NodeId) -> Result<Vec<NodeId>, String> {
+        let selector_list = parse_selector(selector)?;
+        let mut caches = selectors::context::SelectorCaches::default();
+        let mut context = MatchingContext::new(
+            MatchingMode::Normal,
+            None,
+            &mut caches,
+            QuirksMode::NoQuirks,
+            NeedsSelectorFlags::No,
+            MatchingForInvalidation::No,
+        );
+        let mut results = Vec::new();
+        for desc_id in self.descendants(root) {
+            if desc_id == root {
+                continue;
+            }
+            let is_element = self.with_node(desc_id, |n| n.is_element()).unwrap_or(false);
+            if is_element {
+                let element = DomElement::new(self, desc_id);
+                if selectors::matching::matches_selector_list(&selector_list, &element, &mut context) {
+                    results.push(desc_id);
+                }
+            }
+        }
+        Ok(results)
+    }
 }
 
 #[cfg(test)]

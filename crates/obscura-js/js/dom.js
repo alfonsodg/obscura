@@ -215,9 +215,9 @@ class Element extends Node {
   hasAttribute(n) { return this.getAttribute(n) !== null; }
   hasAttributes() { return true; } // Simplified
   getAttributeNS(ns, n) { return this.getAttribute(n); }
-  querySelector(s) { return _wrapEl(+_dom("query_selector", s)); }
+  querySelector(s) { return _wrapEl(+_dom("query_selector_within", s, String(this._nid))); }
   querySelectorAll(s) {
-    const ids = _domParse("query_selector_all", s) || [];
+    const ids = _domParse("query_selector_all_within", s, String(this._nid)) || [];
     const list = ids.map(_wrapEl).filter(Boolean);
     list.item = (i) => list[i] || null;
     list.forEach = Array.prototype.forEach.bind(list);
