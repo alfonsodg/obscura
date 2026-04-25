@@ -245,9 +245,34 @@ class Element extends Node {
   }
   get style() { return this._style; }
   set style(v) { if (typeof v === "string") this._style.cssText = v; }
+  get attributes() {
+    const attrs = _domParse("get_attributes", this._nid) || [];
+    const map = {};
+    const list = [];
+    for (let i = 0; i < attrs.length; i += 2) {
+      const attr = { name: attrs[i], value: attrs[i+1], specified: true };
+      map[attrs[i]] = attr;
+      list.push(attr);
+    }
+    list.getNamedItem = (n) => map[n] || null;
+    list.item = (i) => list[i] || null;
+    list.length = list.length;
+    return new Proxy(list, {
+      get(t, p) {
+        if (p in t) return t[p];
+        if (typeof p === 'string' && map[p]) return map[p];
+        return undefined;
+      }
+    });
+  }
   getAttribute(n) { return _domParse("get_attribute", this._nid, n); }
   setAttribute(n, v) {
     _dom("set_attribute", this._nid, n + "\0" + String(v));
+    // Compile on* attributes as event handlers (browser behavior)
+    if (n.startsWith('on') && n.length > 2) {
+      const evtName = n.slice(2);
+      try { this._eventHandlers[evtName] = new Function('event', String(v)); } catch {}
+    }
     if (globalThis.__mutationObservers?.length) globalThis.__notifyMutation('attributes', this._nid, [], [], n);
   }
   setAttributeNS(ns, n, v) { this.setAttribute(n, v); } // Simplified NS handling

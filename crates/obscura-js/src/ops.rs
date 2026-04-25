@@ -228,6 +228,21 @@ fn op_dom(state: &OpState, #[string] cmd: String, #[string] arg1: String, #[stri
                 .and_then(|n| n.get_attribute(&arg2).map(|s| s.to_string()));
             serde_json::to_string(&val).unwrap_or("null".into())
         }
+        "get_attributes" => {
+            let nid = arg1.parse::<u32>().unwrap_or(0);
+            let attrs: Vec<String> = dom
+                .get_node(NodeId::new(nid))
+                .and_then(|n| {
+                    n.attrs().map(|attrs| {
+                        attrs
+                            .iter()
+                            .flat_map(|a| vec![a.name.local.to_string(), a.value.clone()])
+                            .collect()
+                    })
+                })
+                .unwrap_or_default();
+            serde_json::to_string(&attrs).unwrap_or("[]".into())
+        }
         "set_attribute" => {
             let nid = arg1.parse::<u32>().unwrap_or(0);
             let node_id = NodeId::new(nid);
