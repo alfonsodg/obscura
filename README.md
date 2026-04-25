@@ -203,6 +203,9 @@ Obscura implements the Chrome DevTools Protocol for Puppeteer/Playwright compati
 | **Fetch** | enable, continueRequest, fulfillRequest, failRequest (live interception) |
 | **Storage** | getCookies, setCookies, deleteCookies |
 | **Input** | dispatchMouseEvent, dispatchKeyEvent |
+| **Browser** | getVersion, close |
+| **Audits** | enable, disable |
+| **Console** | enable, disable |
 | **LP** | getMarkdown (DOM-to-Markdown conversion) |
 ## CLI Reference
 
@@ -240,6 +243,39 @@ Scrape multiple URLs in parallel with worker processes.
 | `--concurrency` | `10` | Parallel workers |
 | `--eval` | — | JS expression per page |
 | `--format` | `json` | Output: `json` or `text` |
+
+### `obscura inspect <URL>`
+
+Run a full diagnostic on a page: navigation, DOM structure, semantic HTML, meta tags, accessibility, JS errors, and a summary with issue counts.
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--stealth` | off | Anti-detection mode |
+| `--verbose` | off | Extra detail |
+
+```bash
+obscura inspect https://example.com
+```
+
+## Health Endpoint
+
+When running `obscura serve`, a health check is available:
+
+```bash
+curl http://127.0.0.1:9222/health
+# {"status":"ok","service":"obscura","version":"0.1.0"}
+```
+
+## DOM & Framework Compatibility
+
+Obscura's DOM engine supports jQuery (1.8+, 4.0), Bootstrap, and PrimeFaces:
+
+- `querySelector`/`querySelectorAll` scoped to element subtrees
+- `DocumentFragment` with full child tracking
+- `Element.attributes` as `NamedNodeMap` with Proxy
+- `getComputedStyle` with 40+ CSS properties
+- Event handler properties (`onclick`, `onsubmit`, etc.)
+- `setTimeout`/`setInterval` with real async delays
 
 ## License
 
