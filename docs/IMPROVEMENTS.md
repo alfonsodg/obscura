@@ -1,6 +1,14 @@
-# Obscura — Changelog de mejoras (abril 2026)
+# Obscura — Improvements Changelog (April 2026)
 
-Fork: `alfonsodg/obscura` | Branch: `fix/resolve-all-issues` | 10 commits
+Fork: `alfonsodg/obscura` | Branch: `fix/resolve-all-issues` | 12 commits
+
+## Summary
+
+Obscura is a lightweight headless browser (30MB RAM) for web scraping and AI agents. We resolved all 34 issues, added 102 unit tests + 12 E2E tests, and significantly improved DOM compatibility for jQuery/PrimeFaces sites.
+
+**Not suitable for:** Sites with reCAPTCHA v3 or JSF/PrimeFaces that require full browser session (e.g., SEACE). Use Playwright for those.
+
+**Best for:** High-volume scraping of static/JS sites without captcha, API testing, DOM inspection.
 
 ## Seguridad (3 fixes críticos)
 
