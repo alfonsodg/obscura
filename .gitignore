@@ -1,40 +1,29 @@
-# Build artifacts
+# Rust artifacts
 /target/
-**/*.rs.bk
+Cargo.lock
 
-# Environment & secrets
-.env
-.env.*
-!.env.example
-REMOTE.md
+# Debug files
+debug/
 
-# IDE & OS
+# IDE
 .idea/
 .vscode/
 *.swp
-*.swo
-*~
+
+# OS
 .DS_Store
 Thumbs.db
 
-# Debug & screenshots
-debug/
+# Logs
+*.log
 
 # Reference docs
 reference/
 
-# AI agents
-AGENTS.md
-.kiro/
-.cursor/
-.aider*
-.claude/
-CLAUDE.md
+# Environment
+.env
+.env.*
 
-# Logs & temp
-*.log
-tmp/
-.cache/
-*.tmp
-*.bak
-*.orig
+# Release artifacts
+*.tar.gz
+*.zip

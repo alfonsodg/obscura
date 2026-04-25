@@ -69,3 +69,43 @@ pub fn validate_url(url: &url::Url) -> Result<(), ObscuraNetError> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use url::Url;
+
+    #[test]
+    fn allows_http_and_https() {
+        assert!(validate_url(&Url::parse("http://example.com").unwrap()).is_ok());
+        assert!(validate_url(&Url::parse("https://example.com/path?q=1").unwrap()).is_ok());
+    }
+
+    #[test]
+    fn rejects_forbidden_schemes() {
+        for s in ["file:///etc/passwd", "ftp://example.com", "data:text/html,<h1>hi</h1>"] {
+            assert!(validate_url(&Url::parse(s).unwrap()).is_err(), "should reject {}", s);
+        }
+    }
+
+    #[test]
+    fn rejects_private_ips() {
+        for addr in ["http://127.0.0.1", "http://10.0.0.1", "http://192.168.1.1", "http://169.254.169.254"] {
+            assert!(validate_url(&Url::parse(addr).unwrap()).is_err(), "should reject {}", addr);
+        }
+    }
+
+    #[test]
+    fn rejects_localhost() {
+        for host in ["http://localhost", "http://foo.localhost", "http://sub.localhost:8080/path"] {
+            assert!(validate_url(&Url::parse(host).unwrap()).is_err(), "should reject {}", host);
+        }
+    }
+
+    #[test]
+    fn allows_public_urls() {
+        for u in ["https://google.com", "https://api.github.com/repos", "http://93.184.216.34"] {
+            assert!(validate_url(&Url::parse(u).unwrap()).is_ok(), "should allow {}", u);
+        }
+    }
+}

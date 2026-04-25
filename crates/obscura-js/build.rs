@@ -1,13 +1,33 @@
 use std::path::PathBuf;
 
 fn main() {
-    println!("cargo:rerun-if-changed=js/bootstrap.js");
     println!("cargo:rerun-if-changed=build.rs");
+
+    const JS_FILES: &[&str] = &[
+        "js/core.js",
+        "js/stealth.js",
+        "js/timers.js",
+        "js/dom.js",
+        "js/navigator.js",
+        "js/fetch.js",
+        "js/webapis.js",
+        "js/workers.js",
+        "js/polyfills.js",
+        "js/init.js",
+    ];
+
+    for f in JS_FILES {
+        println!("cargo:rerun-if-changed={f}");
+    }
+
+    let bootstrap_js: String = JS_FILES
+        .iter()
+        .map(|f| std::fs::read_to_string(f).unwrap_or_else(|e| panic!("Failed to read {f}: {e}")))
+        .collect::<Vec<_>>()
+        .join("");
 
     let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
     let snapshot_path = out_dir.join("OBSCURA_SNAPSHOT.bin");
-
-    let bootstrap_js = include_str!("js/bootstrap.js");
 
     let output = deno_core::snapshot::create_snapshot(
         deno_core::snapshot::CreateSnapshotOptions {

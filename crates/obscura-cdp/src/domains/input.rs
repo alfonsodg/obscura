@@ -165,3 +165,33 @@ pub async fn handle(
         _ => Err(format!("Unknown Input method: {}", method)),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::escape_js_string;
+
+    #[test]
+    fn escapes_backslash() {
+        assert_eq!(escape_js_string("a\\b"), "a\\\\b");
+    }
+
+    #[test]
+    fn escapes_single_quote() {
+        assert_eq!(escape_js_string("it's"), "it\\'s");
+    }
+
+    #[test]
+    fn escapes_newline_and_cr() {
+        assert_eq!(escape_js_string("a\nb\rc"), "a\\nb\\rc");
+    }
+
+    #[test]
+    fn escapes_null_byte() {
+        assert_eq!(escape_js_string("a\0b"), "a\\0b");
+    }
+
+    #[test]
+    fn escapes_combined() {
+        assert_eq!(escape_js_string("\\'\n\r\0"), "\\\\\\'\\n\\r\\0");
+    }
+}

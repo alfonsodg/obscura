@@ -1,6 +1,7 @@
 pub mod page;
 pub mod context;
 pub mod lifecycle;
+mod scripting;
 
 pub use page::{Page, PageError};
 pub use context::BrowserContext;
