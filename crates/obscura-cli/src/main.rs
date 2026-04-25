@@ -1,4 +1,5 @@
 mod fetch;
+mod inspect;
 mod scrape;
 mod serve;
 
@@ -87,6 +88,13 @@ enum Command {
 
         #[arg(long, default_value = "json")]
         format: String,
+    },
+
+    Inspect {
+        url: String,
+
+        #[arg(long)]
+        stealth: bool,
     },
 }
 
@@ -184,6 +192,9 @@ async fn main() -> anyhow::Result<()> {
             format,
         }) => {
             scrape::run_parallel_scrape(urls, eval, concurrency, &format).await?;
+        }
+        Some(Command::Inspect { url, stealth }) => {
+            inspect::run_inspect(&url, stealth).await?;
         }
         None => {
             print_banner(args.port);
